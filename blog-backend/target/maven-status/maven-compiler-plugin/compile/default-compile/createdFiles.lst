@@ -1,6 +1,12 @@
-moon\yukiss\entity\Article.class
 moon\yukiss\BlogBackendApplication.class
+moon\yukiss\mapper\ArticleMapper.class
+moon\yukiss\entity\Article.class
+moon\yukiss\controller\UserController.class
+moon\yukiss\mapper\UserMapper.class
+moon\yukiss\service\UserService.class
+moon\yukiss\utils\JwtUtils.class
+moon\yukiss\entity\User.class
 moon\yukiss\service\ArticleServiceImpl.class
 moon\yukiss\controller\ArticleController.class
 moon\yukiss\service\ArticleService.class
-moon\yukiss\mapper\ArticleMapper.class
+moon\yukiss\service\UserServiceImpl.class
