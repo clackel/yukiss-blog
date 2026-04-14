@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: moon.yukiss.BlogBackendApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.884 s -- in moon.yukiss.BlogBackendApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.860 s -- in moon.yukiss.BlogBackendApplicationTests
