@@ -6,6 +6,7 @@ import moon.yukiss.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -21,5 +22,11 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
         comment.setUserId((Integer) userMap.get("id"));
 
         articleCommentMapper.insert(comment);
+    }
+
+    @Override
+    public List<ArticleComment> listByArticleId(Integer articleId) {
+        // 直接调用我们在 Mapper 里写好的 findByArticleId 方法
+        return articleCommentMapper.findByArticleId(articleId);
     }
 }
