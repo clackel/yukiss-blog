@@ -1,34 +1,64 @@
 package moon.yukiss.controller;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
+import moon.yukiss.common.ApiResponse;
+import moon.yukiss.common.BusinessException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
-@CrossOrigin
 @RestController
 public class FileUploadController {
+    private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+    private static final Set<String> ALLOWED_TYPES = Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+
+    private final Path uploadDir;
+
+    public FileUploadController(@Value("${app.upload.dir}") String uploadDir) {
+        this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+    }
 
     @PostMapping("/upload")
-    public String upload(MultipartFile file) throws IOException {
-        // 1. 获取文件的原始名字 (比如 avatar.png)
-        String originalFilename = file.getOriginalFilename();
+    public ApiResponse<Map<String, String>> upload(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择要上传的头像图片");
+        }
+        if (file.getSize() > MAX_AVATAR_SIZE) {
+            throw new BusinessException("头像不能超过 5MB");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new BusinessException("头像仅支持 JPG、PNG、GIF 或 WebP 图片");
+        }
 
-        // 2. 为了防止不同用户上传同名图片产生覆盖，我们用 UUID 给图片重新起个独一无二的名字
-        String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        String newFileName = UUID.randomUUID().toString() + extension;
+        String extension = extensionFor(contentType);
+        String newFileName = UUID.randomUUID() + extension;
+        Files.createDirectories(uploadDir);
+        Path target = uploadDir.resolve(newFileName).normalize();
+        if (!target.startsWith(uploadDir)) {
+            throw new BusinessException("上传路径不合法");
+        }
+        file.transferTo(target);
 
-        // 3. 确定保存的文件夹路径
-        String folderPath = System.getProperty("user.dir") + "/uploads/";
+        return ApiResponse.ok(Map.of("url", "/uploads/" + newFileName));
+    }
 
-        // 4. 把文件保存到电脑上
-        file.transferTo(new File(folderPath + newFileName));
-
-        // 5. 返回能访问到这张图片的 URL (注意端口号要和你后端的一致，这里假设是 4000)
-        return "/uploads/" + newFileName;
+    private String extensionFor(String contentType) {
+        return switch (contentType.toLowerCase(Locale.ROOT)) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/gif" -> ".gif";
+            case "image/webp" -> ".webp";
+            default -> throw new BusinessException("不支持的图片格式");
+        };
     }
 }

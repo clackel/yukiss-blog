@@ -13,4 +13,7 @@ public class Article {
     private Date updateTime;
     private String authorNickname;
     private String authorAvatar;
+    private Integer likeCount;
+    private Integer commentCount;
+    private Boolean likedByMe;
 }

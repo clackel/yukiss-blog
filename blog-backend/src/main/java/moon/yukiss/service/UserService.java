@@ -1,16 +1,29 @@
 package moon.yukiss.service;
 
+import moon.yukiss.dto.RegisterRequest;
+import moon.yukiss.dto.UpdateProfileRequest;
 import moon.yukiss.entity.User;
 
 public interface UserService {
-    // 登录：检查用户名和密码
     User login(String username, String password);
 
-    // 注册：验证用户名是否重复等
-    void register(User user);
+    User register(RegisterRequest request);
 
-    void updateAvatar(String avatarUrl, Integer id);
+    User getById(Integer id);
 
-    // 注销
-    void deleteAccount(Integer id);
+    User updateProfile(Integer id, UpdateProfileRequest request);
+
+    void changePassword(Integer id, String oldPassword, String newPassword);
+
+    User bindEmail(Integer id, String email, String code);
+
+    String sendEmailBindCode(Integer id, String email);
+
+    String sendRecoverCode(String email);
+
+    String recoverAccount(String email, String code);
+
+    User updateAvatar(String avatarUrl, Integer id);
+
+    void deleteAccount(Integer id, String password);
 }

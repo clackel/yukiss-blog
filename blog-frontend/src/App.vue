@@ -2,18 +2,19 @@
   <div class="app-wrapper">
     <div class="top-nav">
       <div class="nav-content">
-        <div class="logo">
+        <div class="logo" @click="goHome">
           <span class="mizuki-text">Yukiss</span>
         </div>
         
         <el-menu 
+          v-if="token"
           :default-active="$route.path" 
           class="glass-menu" 
           mode="horizontal" 
           router
           :ellipsis="false"
         >
-          <el-menu-item index="/">
+          <el-menu-item index="/home">
             <el-icon><HomeFilled /></el-icon> 主页 (我的)
           </el-menu-item>
           <el-menu-item index="/community">
@@ -25,8 +26,11 @@
         </el-menu>
 
         <div class="nav-tools">
-          <el-icon><Search /></el-icon>
-          <el-icon><Sunny /></el-icon>
+          <template v-if="token">
+            <el-icon><Search /></el-icon>
+            <el-icon><Sunny /></el-icon>
+          </template>
+          <el-button v-else type="primary" round class="nav-login-btn" @click="showAuthDialog = true">登录</el-button>
         </div>
       </div>
     </div>
@@ -41,6 +45,15 @@
 
 <script setup>
 import { HomeFilled, Menu, User, Search, Sunny } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { useUser } from './composables/useUser'
+
+const router = useRouter()
+const { token, showAuthDialog } = useUser()
+
+const goHome = () => {
+  router.push(token.value ? '/home' : '/')
+}
 </script>
 
 <style>
@@ -83,6 +96,9 @@ body { margin: 0; background-color: #f4f5f7; }
   -webkit-background-clip: text;
   letter-spacing: 2px;
 }
+.logo {
+  cursor: pointer;
+}
 
 /* Element Menu 去除自带底色和边框 */
 .glass-menu {
@@ -111,6 +127,11 @@ body { margin: 0; background-color: #f4f5f7; }
   cursor: pointer;
 }
 .nav-tools .el-icon:hover { color: #ff6bb1; }
+.nav-login-btn {
+  background: #ff6bb1 !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 177, 0.26);
+}
 
 /* 页面切换的淡入淡出动画 */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }

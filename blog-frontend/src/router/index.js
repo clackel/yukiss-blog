@@ -1,16 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// 这三个页面组件我们马上就去创建
-import Home from '../views/Home.vue' 
-import Community from '../views/Community.vue'
-import Profile from '../views/Profile.vue'
 
 const routes = [
-  { path: '/', component: Home },               // 默认主页：看自己的博客
-  { path: '/community', component: Community }, // 社区：看所有人的博客
-  { path: '/profile', component: Profile }      // 个人主页：改头像和资料
+  { path: '/', component: () => import('../views/Landing.vue'), meta: { public: true } },
+  { path: '/home', component: () => import('../views/Home.vue'), meta: { requiresAuth: true } },
+  { path: '/community', component: () => import('../views/Community.vue'), meta: { requiresAuth: true } },
+  { path: '/articles/:id', component: () => import('../views/ArticleDetail.vue'), meta: { requiresAuth: true } },
+  { path: '/profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },
 ]
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+})
+
+router.beforeEach((to) => {
+  const hasToken = Boolean(localStorage.getItem('token'))
+  if (to.meta.requiresAuth && !hasToken) {
+    return '/'
+  }
+  if (to.path === '/' && hasToken) {
+    return '/home'
+  }
 })

@@ -12,13 +12,16 @@ import java.util.Map;
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
 
+    private final JwtUtils jwtUtils;
+
+    public LoginInterceptor(JwtUtils jwtUtils) {
+        this.jwtUtils = jwtUtils;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 放行所有的 OPTIONS 请求（跨域预检请求）
         if ("OPTIONS".equals(request.getMethod())) {
-            return true;
-        }
-        if ("GET".equals(request.getMethod()) && request.getRequestURI().startsWith("/articles")) {
             return true;
         }
         // 1. 从请求头 (Header) 中取出名叫 "Authorization" 的手环 (Token)
@@ -26,7 +29,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         try {
             // 2. 验手环：调用 JwtUtils 解析 Token
-            Map<String, Object> claims = JwtUtils.parseToken(token);
+            Map<String, Object> claims = jwtUtils.parseToken(token);
 
             // 3. 验明正身！把解析出来的用户信息放进“储物柜”(ThreadLocal)
             ThreadLocalUtil.set(claims);

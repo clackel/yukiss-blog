@@ -28,4 +28,9 @@ public class ArticleLikeServiceImpl implements ArticleLikeService {
             return "点赞成功";
         }
     }
+
+    @Override
+    public int countLikes(Integer articleId) {
+        return articleLikeMapper.countLikes(articleId);
+    }
 }

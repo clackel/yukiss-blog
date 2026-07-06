@@ -1,73 +1,85 @@
 import { ref } from 'vue'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import request, { apiData } from '../utils/request'
+
+const token = ref(localStorage.getItem('token') || '')
+const userInfo = ref(JSON.parse(localStorage.getItem('user') || 'null'))
+const showAuthDialog = ref(false)
+const isLoginMode = ref(true)
+const authForm = ref({ username: '', password: '', nickname: '', email: '' })
+const authLoading = ref(false)
+
+function saveSession(rawToken, user) {
+  token.value = rawToken
+  userInfo.value = user
+  localStorage.setItem('token', rawToken)
+  localStorage.setItem('user', JSON.stringify(user))
+}
+
+function saveUser(user) {
+  userInfo.value = user
+  localStorage.setItem('user', JSON.stringify(user))
+}
+
+function clearSession() {
+  token.value = ''
+  userInfo.value = null
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+}
 
 export function useUser() {
-  // 1. 从浏览器本地存储恢复状态（刷新网页才不会掉线）
-  const token = ref(localStorage.getItem('token') || '')
-  // 如果本地有存用户数据，就解析出来，否则就是 null
-  const userInfo = ref(JSON.parse(localStorage.getItem('user') || 'null'))
-  
-  // 2. 弹窗控制
-  const showAuthDialog = ref(false)
-  const isLoginMode = ref(true) // true 登录模式，false 注册模式
-  const authForm = ref({ username: '', password: '', nickname: '' })
-
-  // 3. 登录动作
   const doLogin = async () => {
+    authLoading.value = true
     try {
-      const res = await axios.post('/user/login', authForm.value)
-      
-      // 注意：现在后端返回的是一个对象，里面有 token 和 user
-      if (res.data && res.data.token) {
-        const { token: rawToken, user } = res.data
-        
-        // 1. 保存手环
-        token.value = rawToken
-        localStorage.setItem('token', rawToken)
-        
-        // 2.保存后端传过来的真实用户信息 (包含数据库里的 avatar)
-        userInfo.value = user
-        localStorage.setItem('user', JSON.stringify(user))
-
-        ElMessage.success('欢迎回来喵！')
-        showAuthDialog.value = false
-        authForm.value = { username: '', password: '', nickname: '' }
-      } else {
-        // 如果返回的是字符串错误信息
-        ElMessage.error(typeof res.data === 'string' ? res.data : '登录失败')
-      }
-    } catch (err) {
-      ElMessage.error('服务器连接失败...')
+      const data = apiData(await request.post('/user/login', {
+        username: authForm.value.username,
+        password: authForm.value.password,
+      }))
+      saveSession(data.token, data.user)
+      ElMessage.success('登录成功')
+      showAuthDialog.value = false
+      authForm.value = { username: '', password: '', nickname: '', email: '' }
+    } finally {
+      authLoading.value = false
     }
   }
 
-  // 4. 注册动作
   const doRegister = async () => {
+    authLoading.value = true
     try {
-      const res = await axios.post('/user/register', authForm.value)
-      if (res.data === '注册成功！') {
-        ElMessage.success('注册成功！快去登录吧~')
-        isLoginMode.value = true // 切回登录模式
-      } else {
-        ElMessage.error(res.data)
-      }
-    } catch (err) {
-      ElMessage.error('注册失败...')
+      await request.post('/user/register', authForm.value)
+      ElMessage.success('注册成功，现在可以登录了')
+      isLoginMode.value = true
+      authForm.value.password = ''
+    } finally {
+      authLoading.value = false
     }
   }
 
-  // 5. 退出动作
-  const doLogout = () => {
-    token.value = ''
-    userInfo.value = null
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    ElMessage.success('已安全退出！')
+  const refreshMe = async () => {
+    if (!token.value) return
+    const user = apiData(await request.get('/user/me'))
+    saveUser(user)
   }
 
-  return { 
-    token, userInfo, showAuthDialog, isLoginMode, authForm, 
-    doLogin, doRegister, doLogout 
+  const doLogout = () => {
+    clearSession()
+    ElMessage.success('已退出登录')
+  }
+
+  return {
+    token,
+    userInfo,
+    showAuthDialog,
+    isLoginMode,
+    authForm,
+    authLoading,
+    saveUser,
+    clearSession,
+    doLogin,
+    doRegister,
+    doLogout,
+    refreshMe,
   }
 }

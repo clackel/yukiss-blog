@@ -1,8 +1,8 @@
 package moon.yukiss.controller;
 
+import moon.yukiss.common.ApiResponse;
 import moon.yukiss.entity.Article;
 import moon.yukiss.service.ArticleService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,22 +12,30 @@ import java.util.List;
 @RequestMapping("/articles")
 public class ArticleController {
 
-    @Autowired
-    private ArticleService articleService;
+    private final ArticleService articleService;
+
+    public ArticleController(ArticleService articleService) {
+        this.articleService = articleService;
+    }
 
     @GetMapping
-    public List<Article> list() {
-        return articleService.list();
+    public ApiResponse<List<Article>> list() {
+        return ApiResponse.ok(articleService.list());
+    }
+
+    @GetMapping("/mine")
+    public ApiResponse<List<Article>> mine() {
+        return ApiResponse.ok(articleService.listMine());
     }
 
     @GetMapping("/{id}")
-    public Article getById(@PathVariable Integer id) {
-        return articleService.getById(id);
+    public ApiResponse<Article> getById(@PathVariable Integer id) {
+        return ApiResponse.ok(articleService.getById(id));
     }
 
     @PostMapping
-    public String add(@RequestBody Article article) {
+    public ApiResponse<Void> add(@RequestBody Article article) {
         articleService.add(article);
-        return "发布成功！";
+        return ApiResponse.ok("发布成功");
     }
 }

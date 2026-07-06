@@ -6,7 +6,6 @@ import moon.yukiss.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,21 +16,28 @@ public class ArticleServiceImpl implements ArticleService {
 
     @Override
     public List<Article> list() {
-        return articleMapper.list();
+        return articleMapper.list(currentUserId());
+    }
+
+    @Override
+    public List<Article> listMine() {
+        Integer userId = currentUserId();
+        return articleMapper.listByAuthor(userId, userId);
     }
 
     @Override
     public Article getById(Integer id) {
-        // 调用 Mapper 里的 getById()
-        return articleMapper.getById(id);
+        return articleMapper.getById(id, currentUserId());
     }
 
     @Override
     public void add(Article article) {
-        Map<String,Object> map = ThreadLocalUtil.get();
-        // 取出用户的 ID
-        Integer authorID = (Integer) map.get("id");
-        article.setAuthorId(authorID);
+        article.setAuthorId(currentUserId());
         articleMapper.insert(article);
+    }
+
+    private Integer currentUserId() {
+        Map<String,Object> map = ThreadLocalUtil.get();
+        return (Integer) map.get("id");
     }
 }
