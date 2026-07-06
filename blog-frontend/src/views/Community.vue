@@ -39,7 +39,7 @@
 
         <el-card v-else v-for="article in articles" :key="article.id" class="glass-card community-card" shadow="hover" @click="openArticle(article.id)">
           <div class="community-card-main">
-            <el-avatar :size="46" :src="article.authorAvatar" class="community-avatar">
+            <el-avatar :size="46" :src="mediaUrl(article.authorAvatar)" class="community-avatar">
               {{ getAuthorInitial(article) }}
             </el-avatar>
             <div class="community-card-content">
@@ -103,6 +103,7 @@ import { Compass, Connection, Refresh } from '@element-plus/icons-vue'
 import cardBgImg from '../assets/card-bg.jpg'
 import { useArticles } from '../composables/useArticles'
 import { formatDate } from '../utils/date'
+import { mediaUrl } from '../utils/media'
 
 const { articles, isLoading, errorMessage, fetchArticles } = useArticles()
 const router = useRouter()

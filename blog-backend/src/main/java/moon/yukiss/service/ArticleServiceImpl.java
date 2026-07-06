@@ -2,6 +2,7 @@ package moon.yukiss.service;
 
 import moon.yukiss.entity.Article;
 import moon.yukiss.mapper.ArticleMapper;
+import moon.yukiss.common.BusinessException;
 import moon.yukiss.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,28 +17,40 @@ public class ArticleServiceImpl implements ArticleService {
 
     @Override
     public List<Article> list() {
-        return articleMapper.list(currentUserId());
+        return articleMapper.list(currentUserIdOrNull());
     }
 
     @Override
     public List<Article> listMine() {
-        Integer userId = currentUserId();
+        Integer userId = requireCurrentUserId();
         return articleMapper.listByAuthor(userId, userId);
     }
 
     @Override
     public Article getById(Integer id) {
-        return articleMapper.getById(id, currentUserId());
+        return articleMapper.getById(id, currentUserIdOrNull());
     }
 
     @Override
     public void add(Article article) {
-        article.setAuthorId(currentUserId());
+        article.setAuthorId(requireCurrentUserId());
         articleMapper.insert(article);
     }
 
-    private Integer currentUserId() {
+    private Integer currentUserIdOrNull() {
         Map<String,Object> map = ThreadLocalUtil.get();
-        return (Integer) map.get("id");
+        if (map == null) {
+            return null;
+        }
+        Object id = map.get("id");
+        return id instanceof Number ? ((Number) id).intValue() : null;
+    }
+
+    private Integer requireCurrentUserId() {
+        Integer userId = currentUserIdOrNull();
+        if (userId == null) {
+            throw new BusinessException("请先登录");
+        }
+        return userId;
     }
 }

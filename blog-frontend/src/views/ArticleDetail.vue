@@ -19,7 +19,7 @@
       <template v-else-if="article">
         <article class="glass-card detail-card article-body">
           <div class="article-meta">
-            <el-avatar :size="44" :src="article.authorAvatar">
+            <el-avatar :size="44" :src="mediaUrl(article.authorAvatar)">
               {{ getAuthorInitial(article) }}
             </el-avatar>
             <div>
@@ -65,7 +65,7 @@
 
           <div v-else class="comment-list">
             <div v-for="comment in comments" :key="comment.id" class="comment-item">
-              <el-avatar :size="36" :src="comment.avatar">
+              <el-avatar :size="36" :src="mediaUrl(comment.avatar)">
                 {{ getCommentInitial(comment) }}
               </el-avatar>
               <div class="comment-main">
@@ -94,6 +94,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft, Star } from '@element-plus/icons-vue'
 import request, { apiData } from '../utils/request'
 import { formatDate } from '../utils/date'
+import { mediaUrl } from '../utils/media'
 
 const route = useRoute()
 const router = useRouter()
