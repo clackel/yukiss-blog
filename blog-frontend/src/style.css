@@ -5,13 +5,123 @@
   box-sizing: border-box;
 }
 
+:root {
+  --theme-pink: #ff6bb1;
+  --theme-bg: #f4f5f7;
+  --theme-card-bg: rgba(255, 255, 255, 0.82);
+  --theme-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  --theme-radius: 16px;
+}
+
 html, body {
   width: 100%;
   height: 100%;
   overflow-x: hidden;
+  background: var(--theme-bg);
 }
 
 #app {
   width: 100%;
   margin: 0;
+}
+
+.glass-card {
+  background: var(--theme-card-bg) !important;
+  backdrop-filter: blur(10px);
+  border-radius: var(--theme-radius) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  margin-bottom: 20px;
+  box-shadow: var(--theme-shadow) !important;
+}
+
+.card-header {
+  font-weight: 700;
+  color: var(--theme-pink);
+}
+
+.anime-btn {
+  background: var(--theme-pink) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 177, 0.3);
+}
+
+.feed-toolbar {
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-kicker {
+  color: var(--theme-pink);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.section-title {
+  margin: 5px 0 4px;
+  color: #333;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.section-desc {
+  margin: 0;
+  color: #888;
+  font-size: 14px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stat-box {
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: rgba(255, 107, 177, 0.08);
+  text-align: center;
+}
+
+.stat-box span {
+  display: block;
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.stat-box b {
+  color: var(--theme-pink);
+  font-size: 24px;
+}
+
+.vibe-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vibe-list span {
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #666;
+  font-size: 13px;
+  border: 1px solid rgba(255, 107, 177, 0.16);
+}
+
+@media (max-width: 768px) {
+  .feed-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .feed-toolbar .el-button {
+    width: 100%;
+  }
 }

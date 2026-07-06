@@ -12,6 +12,12 @@ import java.util.Map;
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
 
+    private final JwtUtils jwtUtils;
+
+    public LoginInterceptor(JwtUtils jwtUtils) {
+        this.jwtUtils = jwtUtils;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 放行所有的 OPTIONS 请求（跨域预检请求）
@@ -26,7 +32,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         try {
             // 2. 验手环：调用 JwtUtils 解析 Token
-            Map<String, Object> claims = JwtUtils.parseToken(token);
+            Map<String, Object> claims = jwtUtils.parseToken(token);
 
             // 3. 验明正身！把解析出来的用户信息放进“储物柜”(ThreadLocal)
             ThreadLocalUtil.set(claims);

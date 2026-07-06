@@ -1,172 +1,352 @@
 <template>
   <div class="profile-page">
-    
     <el-card v-if="!userInfo" class="glass-card not-login-card">
-      <el-empty description="你还没有登录喵，请先在主页登录哦~" />
+      <el-empty description="登录后可以维护你的个人档案">
+        <el-button type="primary" round class="anime-btn" @click="openLogin">前往登录</el-button>
+      </el-empty>
+
+      <el-divider>找回账号</el-divider>
+      <el-form label-position="top" class="recovery-form">
+        <el-form-item label="绑定邮箱">
+          <el-input v-model="recoverForm.email" placeholder="请输入绑定过的邮箱" />
+        </el-form-item>
+        <el-form-item label="验证码">
+          <div class="inline-control">
+            <el-input v-model="recoverForm.code" placeholder="6 位验证码" />
+            <el-button :loading="recoverLoading" @click="sendRecoverCode">获取验证码</el-button>
+          </div>
+          <div v-if="recoverDevCode" class="dev-code">开发验证码：{{ recoverDevCode }}</div>
+        </el-form-item>
+        <el-button type="primary" plain @click="recoverAccount">找回账号</el-button>
+      </el-form>
     </el-card>
 
     <el-card v-else class="glass-card profile-main-card" shadow="hover">
       <template #header>
         <div class="card-header">
-          <el-icon style="vertical-align: middle; margin-right: 5px;"><User /></el-icon> 我的次元档案
+          <el-icon><User /></el-icon>
+          <span>账号与资料</span>
         </div>
       </template>
 
-      <div class="profile-content">
-        <div class="avatar-section">
+      <div class="profile-grid">
+        <section class="avatar-section">
           <el-upload
             class="avatar-uploader"
-            action="/upload"
+            :action="uploadAction"
             :headers="uploadHeaders"
             :show-file-list="false"
             :on-success="handleUploadSuccess"
+            :on-error="handleUploadError"
             :before-upload="beforeUpload"
           >
             <div class="avatar-wrapper">
-              <el-avatar :size="140" :src="userInfo.avatar" />
+              <el-avatar :size="132" :src="userInfo.avatar" />
               <div class="avatar-mask">
                 <el-icon size="24"><Camera /></el-icon>
-                <span style="margin-top: 8px;">更换头像</span>
+                <span>更换头像</span>
               </div>
             </div>
           </el-upload>
-          <p class="avatar-tip">点击头像更换 (8MB以内)</p>
-        </div>
+          <p class="avatar-tip">支持 JPG、PNG、GIF、WebP，最大 5MB</p>
+          <el-tag :type="userInfo.emailVerified ? 'success' : 'warning'" round>
+            {{ userInfo.emailVerified ? '邮箱已绑定' : '邮箱未绑定' }}
+          </el-tag>
+        </section>
 
-        <div class="info-section">
-          <el-descriptions :column="1" border class="glass-descriptions">
-            <el-descriptions-item label="登录账号">
-              <b>{{ userInfo.username }}</b>
-            </el-descriptions-item>
-            <el-descriptions-item label="对外昵称">
-              {{ userInfo.nickname }}
-            </el-descriptions-item>
-            <el-descriptions-item label="身份权限">
-              <el-tag :type="userInfo.role === 'ADMIN' ? 'danger' : 'success'" round>
-                {{ userInfo.role === 'ADMIN' ? '管理员' : '普通用户' }}
-              </el-tag>
-            </el-descriptions-item>
-          </el-descriptions>
-        </div>
-        <div style="margin-top: 30px; text-align: right;">
-          <el-button type="danger" @click="handleDeleteAccount">
-            <el-icon><Warning /></el-icon> 永久注销账号
-          </el-button>
-        </div>
+        <section class="panel-section">
+          <el-tabs v-model="activeTab">
+            <el-tab-pane label="基础资料" name="profile">
+              <el-form label-position="top" class="profile-form">
+                <el-form-item label="登录账号">
+                  <el-input :model-value="userInfo.username" disabled />
+                </el-form-item>
+                <el-form-item label="昵称">
+                  <el-input v-model="profileForm.nickname" maxlength="30" show-word-limit />
+                </el-form-item>
+                <el-form-item label="简介">
+                  <el-input v-model="profileForm.bio" type="textarea" maxlength="300" show-word-limit />
+                </el-form-item>
+                <div class="two-cols">
+                  <el-form-item label="性别">
+                    <el-select v-model="profileForm.gender" placeholder="请选择" clearable>
+                      <el-option label="保密" value="private" />
+                      <el-option label="女" value="female" />
+                      <el-option label="男" value="male" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="生日">
+                    <el-date-picker v-model="profileForm.birthday" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" />
+                  </el-form-item>
+                </div>
+                <div class="two-cols">
+                  <el-form-item label="所在地">
+                    <el-input v-model="profileForm.location" maxlength="80" />
+                  </el-form-item>
+                  <el-form-item label="个人网站">
+                    <el-input v-model="profileForm.website" maxlength="180" placeholder="https://example.com" />
+                  </el-form-item>
+                </div>
+                <el-button type="primary" :loading="profileLoading" @click="saveProfile">保存资料</el-button>
+              </el-form>
+            </el-tab-pane>
+
+            <el-tab-pane label="邮箱绑定" name="email">
+              <el-alert title="绑定邮箱后，可以通过邮箱找回账号。" type="info" show-icon :closable="false" />
+              <el-form label-position="top" class="profile-form">
+                <el-form-item label="当前邮箱">
+                  <el-input :model-value="userInfo.email || '暂未绑定'" disabled />
+                </el-form-item>
+                <el-form-item label="新邮箱">
+                  <div class="inline-control">
+                    <el-input v-model="emailForm.email" placeholder="name@example.com" />
+                    <el-button :loading="emailCodeLoading" @click="sendBindCode">获取验证码</el-button>
+                  </div>
+                  <div v-if="emailDevCode" class="dev-code">开发验证码：{{ emailDevCode }}</div>
+                </el-form-item>
+                <el-form-item label="验证码">
+                  <el-input v-model="emailForm.code" maxlength="6" />
+                </el-form-item>
+                <el-button type="primary" @click="bindEmail">绑定邮箱</el-button>
+              </el-form>
+            </el-tab-pane>
+
+            <el-tab-pane label="安全设置" name="security">
+              <el-form label-position="top" class="profile-form">
+                <el-form-item label="当前密码">
+                  <el-input v-model="passwordForm.oldPassword" type="password" show-password />
+                </el-form-item>
+                <el-form-item label="新密码">
+                  <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="至少 8 位，包含字母和数字" />
+                </el-form-item>
+                <el-button type="primary" @click="changePassword">更新密码</el-button>
+              </el-form>
+
+              <el-divider />
+              <el-alert title="注销后账号将无法登录，邮箱会解除绑定。此操作需要再次输入密码确认。" type="warning" show-icon :closable="false" />
+              <el-button type="danger" class="delete-btn" @click="openDeleteDialog">
+                <el-icon><Warning /></el-icon>
+                注销账号
+              </el-button>
+            </el-tab-pane>
+          </el-tabs>
+        </section>
       </div>
     </el-card>
+
+    <el-dialog v-model="deleteDialogVisible" title="确认注销账号" width="420px">
+      <p class="danger-copy">注销后，你将退出登录；账号、邮箱绑定和后续登录能力会被停用。</p>
+      <el-input v-model="deleteForm.password" type="password" show-password placeholder="请输入当前密码确认" />
+      <template #footer>
+        <el-button @click="deleteDialogVisible = false">取消</el-button>
+        <el-button type="danger" @click="deleteAccount">确认注销</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-// ✨ 确保引入了 Warning 图标
-import { User, Camera, Warning } from '@element-plus/icons-vue' 
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { Camera, User, Warning } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import request, { API_BASE_URL, apiData } from '../utils/request'
 import { useUser } from '../composables/useUser'
-// ✨ 确保引入了 ElMessageBox 和 ElMessage
-import { ElMessage, ElMessageBox } from 'element-plus' 
-import axios from 'axios'
-// ✨ 确保引入了路由，不然注销后没法跳回主页
-import { useRouter } from 'vue-router' 
 
 const router = useRouter()
-// ✨ 确保从 useUser 里解构出了 doLogout
-const { token, userInfo, doLogout } = useUser()
+const { token, userInfo, showAuthDialog, saveUser, clearSession, refreshMe } = useUser()
 
-// ======== 1. 头像上传逻辑 ========
-const uploadHeaders = computed(() => {
-  return { Authorization: token.value }
+const activeTab = ref('profile')
+const profileLoading = ref(false)
+const emailCodeLoading = ref(false)
+const recoverLoading = ref(false)
+const deleteDialogVisible = ref(false)
+const emailDevCode = ref('')
+const recoverDevCode = ref('')
+
+const profileForm = reactive({
+  nickname: '',
+  bio: '',
+  gender: '',
+  birthday: '',
+  location: '',
+  website: '',
 })
+const emailForm = reactive({ email: '', code: '' })
+const passwordForm = reactive({ oldPassword: '', newPassword: '' })
+const deleteForm = reactive({ password: '' })
+const recoverForm = reactive({ email: '', code: '' })
 
-const beforeUpload = (file) => {
-  const isImg = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/gif'
-  const isLt2M = file.size / 1024 / 1024 < 10 // 限制 10MB
+const uploadHeaders = computed(() => ({ Authorization: token.value }))
+const uploadAction = `${API_BASE_URL}/upload`
 
-  if (!isImg) ElMessage.error('头像只能是 JPG/PNG/GIF 格式喵！')
-  if (!isLt2M) ElMessage.error('头像太大了，不能超过 10MB 喵！')
-  return isImg && isLt2M
+function syncProfileForm() {
+  if (!userInfo.value) return
+  Object.assign(profileForm, {
+    nickname: userInfo.value.nickname || '',
+    bio: userInfo.value.bio || '',
+    gender: userInfo.value.gender || '',
+    birthday: userInfo.value.birthday ? String(userInfo.value.birthday).slice(0, 10) : '',
+    location: userInfo.value.location || '',
+    website: userInfo.value.website || '',
+  })
+  emailForm.email = userInfo.value.email || ''
 }
 
-const handleUploadSuccess = async (res) => {
-  const newAvatarUrl = res 
+watch(userInfo, syncProfileForm, { immediate: true })
+onMounted(() => refreshMe().catch(() => {}))
+
+async function saveProfile() {
+  profileLoading.value = true
   try {
-    await axios.post('/user/updateAvatar', null, {
-      params: { avatarUrl: newAvatarUrl }
-    })
-    userInfo.value.avatar = newAvatarUrl
-    localStorage.setItem('user', JSON.stringify(userInfo.value))
-    ElMessage.success('头像更换成功！美美哒~')
-  } catch (error) {
-    ElMessage.error('头像更新失败，请检查网络...')
+    const user = apiData(await request.put('/user/profile', profileForm))
+    saveUser(user)
+    ElMessage.success('资料已保存')
+  } finally {
+    profileLoading.value = false
   }
 }
 
-// ======== 2. 账号注销逻辑 ========
-const handleDeleteAccount = () => {
-  // 如果之前没引入 ElMessageBox，代码执行到这里就会静默崩溃！
-  ElMessageBox.confirm(
-    '此操作将永久删除您的账号及所有相关数据，是否继续？',
-    '危险操作警告',
-    {
-      confirmButtonText: '残忍注销',
-      cancelButtonText: '点错了，不退了',
-      type: 'warning',
-    }
-  ).then(async () => {
-    try {
-      await axios.delete('/user/delete')
-      ElMessage.success('账号已注销，感谢你的陪伴！')
-      
-      // 清理现场
-      doLogout()
-      // 踢回主页
-      router.push('/')
-      
-    } catch (error) {
-      ElMessage.error('注销失败，请检查后端是否正常启动')
-    }
-  }).catch(() => {
-    ElMessage.info('已取消注销')
-  })
+async function sendBindCode() {
+  emailCodeLoading.value = true
+  try {
+    const data = apiData(await request.post('/user/email/code', { email: emailForm.email }))
+    emailDevCode.value = data?.devCode || ''
+    ElMessage.success(data?.message || '验证码已发送')
+  } finally {
+    emailCodeLoading.value = false
+  }
+}
+
+async function bindEmail() {
+  const user = apiData(await request.post('/user/email/bind', emailForm))
+  saveUser(user)
+  emailForm.code = ''
+  emailDevCode.value = ''
+  ElMessage.success('邮箱绑定成功')
+}
+
+async function changePassword() {
+  await request.post('/user/change-password', passwordForm)
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  ElMessage.success('密码已更新')
+}
+
+function beforeUpload(file) {
+  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    ElMessage.error('头像仅支持 JPG、PNG、GIF 或 WebP')
+    return false
+  }
+  if (file.size / 1024 / 1024 > 5) {
+    ElMessage.error('头像不能超过 5MB')
+    return false
+  }
+  return true
+}
+
+async function handleUploadSuccess(res) {
+  const url = res?.data?.url
+  if (!url) {
+    ElMessage.error(res?.message || '头像上传失败')
+    return
+  }
+  const user = apiData(await request.post('/user/updateAvatar', null, { params: { avatarUrl: url } }))
+  saveUser(user)
+  ElMessage.success('头像已更新')
+}
+
+function handleUploadError() {
+  ElMessage.error('头像上传失败，请稍后再试')
+}
+
+function openDeleteDialog() {
+  deleteForm.password = ''
+  deleteDialogVisible.value = true
+}
+
+async function deleteAccount() {
+  await ElMessageBox.confirm('这是不可恢复操作，确认注销当前账号吗？', '再次确认', { type: 'warning' })
+  await request.delete('/user/delete', { data: { password: deleteForm.password } })
+  clearSession()
+  deleteDialogVisible.value = false
+  ElMessage.success('账号已注销')
+  router.push('/')
+}
+
+async function sendRecoverCode() {
+  recoverLoading.value = true
+  try {
+    const data = apiData(await request.post('/user/recover/code', { email: recoverForm.email }))
+    recoverDevCode.value = data?.devCode || ''
+    ElMessage.success(data?.message || '验证码已发送')
+  } finally {
+    recoverLoading.value = false
+  }
+}
+
+async function recoverAccount() {
+  const data = apiData(await request.post('/user/recover/account', recoverForm))
+  ElMessage.success(`你的登录账号是：${data.username}`)
+}
+
+function openLogin() {
+  showAuthDialog.value = true
+  router.push('/')
 }
 </script>
 
 <style>
-/* 整个页面的布局，留出顶部导航栏的空间 */
 .profile-page {
-  padding-top: 90px; 
-  display: flex;
-  justify-content: center;
+  padding: 90px 20px 40px;
   min-height: 100vh;
   box-sizing: border-box;
+  display: flex;
+  justify-content: center;
 }
 
-.profile-main-card, .not-login-card {
+.profile-main-card,
+.not-login-card {
   width: 100%;
-  max-width: 800px;
+  max-width: 980px;
   height: fit-content;
 }
 
-.profile-content {
+.not-login-card {
+  max-width: 760px;
+}
+
+.not-login-card .el-card__body {
+  padding: 34px 42px;
+}
+
+.not-login-card .el-empty {
+  padding: 12px 0 24px;
+}
+
+.not-login-card .el-empty__image {
+  width: 128px;
+}
+
+.card-header {
   display: flex;
-  gap: 50px;
-  padding: 30px;
   align-items: center;
+  gap: 8px;
 }
 
-/* 手机端改成上下排列 */
-@media (max-width: 768px) {
-  .profile-content {
-    flex-direction: column;
-    text-align: center;
-  }
+.profile-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  padding: 18px;
 }
 
-/* ======== 头像悬浮魔法效果 ======== */
 .avatar-section {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 14px;
 }
 
 .avatar-wrapper {
@@ -176,49 +356,74 @@ const handleDeleteAccount = () => {
   overflow: hidden;
   border: 5px solid white;
   box-shadow: 0 8px 20px rgba(255, 107, 177, 0.2);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 弹性动画 */
-}
-
-.avatar-wrapper:hover {
-  transform: scale(1.05) rotate(5deg);
-  box-shadow: 0 12px 25px rgba(255, 107, 177, 0.4);
-  border-color: var(--theme-pink);
 }
 
 .avatar-mask {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.52);
   color: white;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 8px;
   align-items: center;
+  justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.2s;
 }
 
 .avatar-wrapper:hover .avatar-mask {
   opacity: 1;
 }
 
-.avatar-tip {
-  margin-top: 15px;
+.avatar-tip,
+.dev-code,
+.danger-copy {
+  color: #888;
   font-size: 13px;
-  color: #999;
 }
 
-/* ======== 描述列表透明化 ======== */
-.info-section {
-  flex: 1;
+.panel-section {
+  min-width: 0;
+}
+
+.profile-form {
+  max-width: 620px;
+}
+
+.two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.inline-control {
   width: 100%;
+  display: flex;
+  gap: 10px;
 }
 
-.glass-descriptions {
-  --el-descriptions-table-border: 1px solid rgba(255, 107, 177, 0.2);
-  --el-descriptions-item-bordered-label-background: rgba(255, 107, 177, 0.05);
+.inline-control .el-input {
+  flex: 1;
+}
+
+.delete-btn {
+  margin-top: 18px;
+}
+
+.recovery-form {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .profile-grid,
+  .two-cols {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-control {
+    flex-direction: column;
+  }
 }
 </style>

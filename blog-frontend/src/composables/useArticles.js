@@ -1,30 +1,37 @@
 import { ref } from 'vue'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import request, { apiData } from '../utils/request'
 
 export function useArticles() {
   const articles = ref([])
+  const isLoading = ref(false)
+  const errorMessage = ref('')
+
   const fetchArticles = async () => {
+    isLoading.value = true
+    errorMessage.value = ''
     try {
-      const res = await axios.get('/articles')
-      articles.value = res.data
+      const res = await request.get('/articles')
+      articles.value = apiData(res) || []
     } catch (err) {
-      ElMessage.error('无法连接到后端，请检查 4000 端口')
+      errorMessage.value = '文章加载失败，请稍后重试'
+    } finally {
+      isLoading.value = false
     }
   }
 
   const submitArticle = async (newArticle, onSuccess) => {
     if (!newArticle.title || !newArticle.content) {
-      ElMessage.warning('标题和内容缺一不可哦！')
+      ElMessage.warning('请填写标题和内容')
       return
     }
     try {
-      await axios.post('/articles', newArticle)
-      ElMessage.success('发布成功！')
+      await request.post('/articles', newArticle)
+      ElMessage.success('发布成功')
       if (onSuccess) onSuccess()
       fetchArticles()
     } catch (err) {
-      ElMessage.error('发布失败，请检查网络')
+      ElMessage.error('发布失败，请稍后重试')
     }
   }
 
@@ -33,5 +40,5 @@ export function useArticles() {
     return new Date(dateStr).toLocaleDateString()
   }
 
-  return { articles, fetchArticles, submitArticle, formatDate }
+  return { articles, isLoading, errorMessage, fetchArticles, submitArticle, formatDate }
 }

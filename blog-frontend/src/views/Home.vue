@@ -41,9 +41,14 @@
         </el-col>
 
         <el-col :xs="24" :md="12">
-          <div class="action-bar">
+          <div class="feed-toolbar glass-card">
+            <div>
+              <span class="section-kicker">Timeline</span>
+              <h2 class="section-title">最新投稿</h2>
+              <p class="section-desc">收集旅人们刚刚投递到 Yukiss 的灵感碎片。</p>
+            </div>
             <el-button type="primary" round @click="handlePublishClick" class="anime-btn">
-              我要投稿喵
+              <el-icon><EditPen /></el-icon> 写一篇
             </el-button>
           </div>
 
@@ -59,7 +64,7 @@
             <div class="dialog-glass-bg">
               <div class="dialog-header">
                 <span class="dialog-title"><el-icon style="vertical-align: middle; margin-right: 4px;"><EditPen /></el-icon>发布新博客</span>
-                <span class="dialog-desc">分享你的灵感与故事吧！</span>
+                <span class="dialog-desc">把今天的灵感投进 Yukiss 的星轨里。</span>
               </div>
               <el-input
                 v-model="newArticle.title"
@@ -73,7 +78,7 @@
                 v-model="newArticle.content"
                 type="textarea"
                 :rows="7"
-                placeholder="今天有什么次元趣事？"
+                placeholder="今天有什么想记录的故事？"
                 class="m-b-16 dialog-input"
                 maxlength="500"
                 show-word-limit
@@ -87,7 +92,25 @@
             </div>
           </el-dialog>
 
-          <el-card v-for="article in articles" :key="article.id" class="glass-card new-article-card" shadow="hover">
+          <template v-if="isLoading">
+            <el-card v-for="index in 3" :key="index" class="glass-card article-skeleton-card" shadow="never">
+              <el-skeleton animated :rows="4" />
+            </el-card>
+          </template>
+
+          <el-card v-else-if="errorMessage" class="glass-card empty-feed-card" shadow="hover">
+            <el-empty description="星轨暂时连接失败">
+              <el-button type="primary" round class="anime-btn" @click="fetchArticles">重新加载</el-button>
+            </el-empty>
+          </el-card>
+
+          <el-card v-else-if="!articles.length" class="glass-card empty-feed-card" shadow="hover">
+            <el-empty description="还没有投稿，第一束灵感正在等待被点亮">
+              <el-button type="primary" round class="anime-btn" @click="handlePublishClick">成为第一位投稿者</el-button>
+            </el-empty>
+          </el-card>
+
+          <el-card v-else v-for="article in articles" :key="article.id" class="glass-card new-article-card" shadow="hover">
             <div class="card-content-wrapper">
               
               <div class="main-content-left">
@@ -127,8 +150,30 @@
                 <el-icon style="vertical-align: middle; margin-right: 4px;"><DataAnalysis /></el-icon> 站点统计
               </div>
             </template>
-            <div class="stat-item">文章总数：<b>{{ articles.length }}</b></div>
-            <div class="stat-item">运行天数：<b>1</b> 天</div>
+            <div class="stat-grid">
+              <div class="stat-box">
+                <span>文章</span>
+                <b>{{ articles.length }}</b>
+              </div>
+              <div class="stat-box">
+                <span>运行</span>
+                <b>{{ runDays }}</b>
+              </div>
+            </div>
+            <div class="stat-item subtle-stat">最近投稿：{{ latestAuthor }}</div>
+          </el-card>
+
+          <el-card class="glass-card side-card vibe-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <el-icon style="vertical-align: middle; margin-right: 4px;"><Star /></el-icon> 创作信号
+              </div>
+            </template>
+            <div class="vibe-list">
+              <span>随笔</span>
+              <span>代码笔记</span>
+              <span>观测日志</span>
+            </div>
           </el-card>
 
           <el-card class="glass-card side-card" shadow="hover">
@@ -162,8 +207,12 @@
         <template #prefix><el-icon><EditPen /></el-icon></template>
       </el-input>
 
+      <el-input v-if="!isLoginMode" v-model="authForm.email" placeholder="请输入邮箱 (用于找回账号)" class="m-b-16 dialog-input">
+        <template #prefix><el-icon><Message /></el-icon></template>
+      </el-input>
+
       <div style="text-align: center; margin-top: 20px;">
-        <el-button type="primary" class="anime-btn" style="width: 100%;" @click="isLoginMode ? doLogin() : doRegister()">
+        <el-button type="primary" class="anime-btn" style="width: 100%;" :loading="authLoading" @click="isLoginMode ? doLogin() : doRegister()">
           {{ isLoginMode ? '登录' : '立即注册' }}
         </el-button>
         <div style="margin-top: 15px; font-size: 13px; color: #888;">
@@ -182,27 +231,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import coverImg from '../assets/cover.png'
-import avatarImg from '../assets/avatar.jpg'
-import cardBgImg from '../assets/card-bg.jpg'
 import { useArticles } from '../composables/useArticles'
 import { useForm } from '../composables/useForm'
 import { formatDate, getDaysSince } from '../utils/date'
-import { ElMessage, ElDialog } from 'element-plus'
-import { InfoFilled, DataAnalysis, Calendar, EditPen, ArrowRight, User, Lock, SwitchButton } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { InfoFilled, DataAnalysis, Calendar, EditPen, ArrowRight, User, Lock, SwitchButton, Star, Message } from '@element-plus/icons-vue'
 import { useUser } from '../composables/useUser'
 
 // 引入用户状态
 const { 
-  token, userInfo, showAuthDialog, isLoginMode, authForm, 
+  token, userInfo, showAuthDialog, isLoginMode, authForm, authLoading,
   doLogin, doRegister, doLogout 
 } = useUser()
 
 // 拦截原来的投稿按钮逻辑
 const handlePublishClick = () => {
   if (!token.value) {
-    ElMessage.warning('请先登录再投稿哦喵！')
+    ElMessage.warning('请先登录后再投稿')
     showAuthDialog.value = true
     return
   }
@@ -211,26 +258,26 @@ const handlePublishClick = () => {
 
 const calendarDate = ref(new Date())
 const siteStartDate = '2024-04-01'
-
-const { articles, fetchArticles, submitArticle: submitArticleRaw } = useArticles()
+const { articles, isLoading, errorMessage, fetchArticles, submitArticle: submitArticleRaw } = useArticles()
 const { showDialog, newArticle, resetForm } = useForm()
 
 const runDays = computed(() => getDaysSince(siteStartDate))
+const latestAuthor = computed(() => articles.value[0]?.authorNickname || '等待第一位旅人')
 
 const openDialog = () => { showDialog.value = true }
 const closeDialog = () => { showDialog.value = false; resetForm() }
 
 const submitArticle = async () => {
   if (!newArticle.value.title || !newArticle.value.content) {
-    ElMessage.warning('标题和内容缺一不可哦！')
+    ElMessage.warning('请填写标题和内容')
     return
   }
   if (newArticle.value.title.length > 40) {
-    ElMessage.warning('标题不能超过40字！')
+    ElMessage.warning('标题不能超过 40 字')
     return
   }
   if (newArticle.value.content.length > 500) {
-    ElMessage.warning('内容不能超过500字！')
+    ElMessage.warning('内容不能超过 500 字')
     return
   }
   await submitArticleRaw(newArticle.value, () => { resetForm(); closeDialog() })
@@ -337,6 +384,31 @@ html, body {
 .post-excerpt { padding: 20px; color: #666; line-height: 1.7; }
 .post-footer { padding: 0 20px 20px; text-align: right; }
 .action-bar { margin-bottom: 20px; text-align: center; }
+.feed-toolbar {
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.section-kicker {
+  color: var(--theme-pink);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.section-title {
+  margin: 5px 0 4px;
+  color: #333;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.section-desc {
+  margin: 0;
+  color: #888;
+  font-size: 14px;
+}
 .anime-btn { background: var(--theme-pink) !important; border: none !important; box-shadow: 0 4px 12px rgba(255,107,177,0.3); }
 .m-b-10 { margin-bottom: 12px; }
 
@@ -390,6 +462,13 @@ html, body {
   .main-content { margin-top: 20px !important; }
   .big-cover { height: 40vh; }
   .site-title { font-size: 2rem; }
+  .feed-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .feed-toolbar .el-button {
+    width: 100%;
+  }
 }
 
 /* ====================
@@ -494,6 +573,54 @@ html, body {
   font-size: 12px;
   font-weight: bold;
 }
+.article-skeleton-card {
+  padding: 8px 4px;
+}
+.empty-feed-card {
+  padding: 24px 0;
+}
+.empty-feed-card .el-empty {
+  --el-empty-description-margin-top: 12px;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stat-box {
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: rgba(255, 107, 177, 0.08);
+  text-align: center;
+}
+.stat-box span {
+  display: block;
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.stat-box b {
+  color: var(--theme-pink);
+  font-size: 24px;
+}
+.subtle-stat {
+  color: #777;
+  font-size: 13px;
+}
+.vibe-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.vibe-list span {
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #666;
+  font-size: 13px;
+  border: 1px solid rgba(255, 107, 177, 0.16);
+}
 
 /* 右侧的粉色大箭头区域 */
 .arrow-right-block {
@@ -510,5 +637,15 @@ html, body {
 .arrow-right-block:hover {
   background: var(--theme-pink);
   color: #fff;
+}
+
+@media (max-width: 768px) {
+  .new-post-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .arrow-right-block {
+    width: 48px;
+  }
 }
 </style>
