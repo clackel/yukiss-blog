@@ -37,7 +37,7 @@
           <el-empty description="社区频道还很安静，等待第一篇公开投稿" />
         </el-card>
 
-        <el-card v-else v-for="article in articles" :key="article.id" class="glass-card community-card" shadow="hover">
+        <el-card v-else v-for="article in articles" :key="article.id" class="glass-card community-card" shadow="hover" @click="openArticle(article.id)">
           <div class="community-card-main">
             <el-avatar :size="46" :src="article.authorAvatar" class="community-avatar">
               {{ getAuthorInitial(article) }}
@@ -51,6 +51,8 @@
               <div class="community-tags">
                 <span>#公开频道</span>
                 <span>#{{ article.authorNickname || '神秘旅人' }}</span>
+                <span>♥ {{ article.likeCount || 0 }}</span>
+                <span>评论 {{ article.commentCount || 0 }}</span>
               </div>
             </div>
           </div>
@@ -96,12 +98,14 @@
 
 <script setup>
 import { computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Compass, Connection, Refresh } from '@element-plus/icons-vue'
 import cardBgImg from '../assets/card-bg.jpg'
 import { useArticles } from '../composables/useArticles'
 import { formatDate } from '../utils/date'
 
 const { articles, isLoading, errorMessage, fetchArticles } = useArticles()
+const router = useRouter()
 
 const authorCount = computed(() => {
   const authors = articles.value.map(article => article.authorNickname || article.authorId).filter(Boolean)
@@ -111,6 +115,10 @@ const authorCount = computed(() => {
 const getAuthorInitial = (article) => {
   const name = article.authorNickname || '旅'
   return name.slice(0, 1)
+}
+
+const openArticle = (id) => {
+  router.push(`/articles/${id}`)
 }
 
 onMounted(() => fetchArticles())
@@ -164,6 +172,11 @@ onMounted(() => fetchArticles())
 }
 .community-card {
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.community-card:hover {
+  transform: translateY(-2px);
 }
 .community-card .el-card__body {
   padding: 0;

@@ -9,4 +9,6 @@ public interface ArticleCommentService {
     void addComment(ArticleComment comment);
 
     List<ArticleComment> listByArticleId(Integer articleId);
+
+    String toggleLike(Integer commentId);
 }

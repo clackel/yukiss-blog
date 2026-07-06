@@ -45,7 +45,7 @@
             <div>
               <span class="section-kicker">Timeline</span>
               <h2 class="section-title">最新投稿</h2>
-              <p class="section-desc">收集旅人们刚刚投递到 Yukiss 的灵感碎片。</p>
+              <p class="section-desc">这里只收纳你自己投递到 Yukiss 的灵感碎片。</p>
             </div>
             <el-button type="primary" round @click="handlePublishClick" class="anime-btn">
               <el-icon><EditPen /></el-icon> 写一篇
@@ -110,7 +110,7 @@
             </el-empty>
           </el-card>
 
-          <el-card v-else v-for="article in articles" :key="article.id" class="glass-card new-article-card" shadow="hover">
+          <el-card v-else v-for="article in articles" :key="article.id" class="glass-card new-article-card" shadow="hover" @click="openArticle(article.id)">
             <div class="card-content-wrapper">
               
               <div class="main-content-left">
@@ -132,6 +132,8 @@
                 <div class="new-post-tags">
                   <span class="tag-item"># 日志</span>
                   <span class="tag-item"># Yukiss</span>
+                  <span class="tag-item">♥ {{ article.likeCount || 0 }}</span>
+                  <span class="tag-item">评论 {{ article.commentCount || 0 }}</span>
                 </div>
               </div>
               
@@ -232,6 +234,7 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import coverImg from '../assets/cover.png'
 import { useArticles } from '../composables/useArticles'
 import { useForm } from '../composables/useForm'
@@ -245,6 +248,7 @@ const {
   token, userInfo, showAuthDialog, isLoginMode, authForm, authLoading,
   doLogin, doRegister, doLogout 
 } = useUser()
+const router = useRouter()
 
 // 拦截原来的投稿按钮逻辑
 const handlePublishClick = () => {
@@ -262,7 +266,7 @@ const { articles, isLoading, errorMessage, fetchArticles, submitArticle: submitA
 const { showDialog, newArticle, resetForm } = useForm()
 
 const runDays = computed(() => getDaysSince(siteStartDate))
-const latestAuthor = computed(() => articles.value[0]?.authorNickname || '等待第一位旅人')
+const latestAuthor = computed(() => articles.value[0] ? '你自己' : '等待第一篇投稿')
 
 const openDialog = () => { showDialog.value = true }
 const closeDialog = () => { showDialog.value = false; resetForm() }
@@ -295,7 +299,11 @@ const nextMonth = () => {
   calendarDate.value = d
 }
 
-onMounted(() => fetchArticles())
+const openArticle = (id) => {
+  router.push(`/articles/${id}`)
+}
+
+onMounted(() => fetchArticles({ mine: true }))
 </script>
 
 <style>

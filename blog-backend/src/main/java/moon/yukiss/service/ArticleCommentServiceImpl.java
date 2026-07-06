@@ -26,7 +26,23 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
 
     @Override
     public List<ArticleComment> listByArticleId(Integer articleId) {
-        // 直接调用我们在 Mapper 里写好的 findByArticleId 方法
-        return articleCommentMapper.findByArticleId(articleId);
+        return articleCommentMapper.findByArticleId(articleId, currentUserId());
+    }
+
+    @Override
+    public String toggleLike(Integer commentId) {
+        Integer userId = currentUserId();
+        int count = articleCommentMapper.checkCommentLiked(userId, commentId);
+        if (count > 0) {
+            articleCommentMapper.deleteCommentLike(userId, commentId);
+            return "取消点赞";
+        }
+        articleCommentMapper.addCommentLike(userId, commentId);
+        return "点赞成功";
+    }
+
+    private Integer currentUserId() {
+        Map<String, Object> userMap = ThreadLocalUtil.get();
+        return (Integer) userMap.get("id");
     }
 }

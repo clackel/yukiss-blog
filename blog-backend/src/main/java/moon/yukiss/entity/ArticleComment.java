@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class ArticleComment {
     private Integer id;
     private Integer articleId;
-    private Integer commentId;
+    private Integer parentId;
     private Integer userId;
     private String content;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
@@ -18,4 +18,7 @@ public class ArticleComment {
 
     private String nickname;
     private String avatar;
+    private String parentNickname;
+    private Integer likeCount;
+    private Boolean likedByMe;
 }

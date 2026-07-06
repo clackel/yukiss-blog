@@ -6,12 +6,15 @@ export function useArticles() {
   const articles = ref([])
   const isLoading = ref(false)
   const errorMessage = ref('')
+  const lastFetchOptions = ref({})
 
-  const fetchArticles = async () => {
+  const fetchArticles = async (options = lastFetchOptions.value) => {
+    lastFetchOptions.value = options
     isLoading.value = true
     errorMessage.value = ''
     try {
-      const res = await request.get('/articles')
+      const endpoint = options.mine ? '/articles/mine' : '/articles'
+      const res = await request.get(endpoint)
       articles.value = apiData(res) || []
     } catch (err) {
       errorMessage.value = '文章加载失败，请稍后重试'
@@ -29,7 +32,7 @@ export function useArticles() {
       await request.post('/articles', newArticle)
       ElMessage.success('发布成功')
       if (onSuccess) onSuccess()
-      fetchArticles()
+      fetchArticles(lastFetchOptions.value)
     } catch (err) {
       ElMessage.error('发布失败，请稍后重试')
     }

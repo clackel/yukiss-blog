@@ -24,9 +24,6 @@ public class LoginInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equals(request.getMethod())) {
             return true;
         }
-        if ("GET".equals(request.getMethod()) && request.getRequestURI().startsWith("/articles")) {
-            return true;
-        }
         // 1. 从请求头 (Header) 中取出名叫 "Authorization" 的手环 (Token)
         String token = request.getHeader("Authorization");
 
