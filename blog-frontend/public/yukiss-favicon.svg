@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Yukiss Blog">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff7ab8"/>
+      <stop offset="0.58" stop-color="#ff4f9d"/>
+      <stop offset="1" stop-color="#7cc7ff"/>
+    </linearGradient>
+    <linearGradient id="page" x1="20" y1="16" x2="44" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff8fd"/>
+      <stop offset="1" stop-color="#ffe4f3"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <path fill="#fff" fill-opacity="0.2" d="M52.6 13.8c-4.5 8.3-3 17.2 3.6 23.4-3.8 10.6-14 18.1-26 18.1-15.1 0-27.4-12.3-27.4-27.4 0-7.1 2.7-13.6 7.2-18.5A25.4 25.4 0 0 0 32 50.8c10.9 0 20.3-6.8 24-16.4-5.7-5.7-7-13.3-3.4-20.6Z"/>
+  <path fill="url(#page)" d="M20 15.5h20.4L48 23v25.5H20v-33Z"/>
+  <path fill="#ffd4eb" d="M40.2 15.5V23H48l-7.8-7.5Z"/>
+  <path fill="#ff4f9d" d="M25.6 24.2h13.8v3.3H25.6v-3.3Zm0 7.4h17.1v3.3H25.6v-3.3Zm0 7.4h10.8v3.3H25.6V39Z"/>
+  <path fill="#fff" d="M45.6 10.2 47 14l3.8 1.4L47 16.8l-1.4 3.8-1.4-3.8-3.8-1.4 3.8-1.4 1.4-3.8ZM15.5 42l1 2.8 2.8 1-2.8 1-1 2.8-1-2.8-2.8-1 2.8-1 1-2.8Z"/>
+  <path fill="#5f2d5c" d="M31.3 49V37.9l-8.2-13.1h6.2l4.9 8.4 4.8-8.4h5.9l-8.1 13.1V49h-5.5Z"/>
+</svg>

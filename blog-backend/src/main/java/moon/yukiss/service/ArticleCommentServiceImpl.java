@@ -1,5 +1,6 @@
 package moon.yukiss.service;
 
+import moon.yukiss.common.BusinessException;
 import moon.yukiss.entity.ArticleComment;
 import moon.yukiss.mapper.ArticleCommentMapper;
 import moon.yukiss.utils.ThreadLocalUtil;
@@ -18,20 +19,19 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
     @Override
     public void addComment(ArticleComment comment) {
         // 自动补齐当前登录者 ID
-        Map<String, Object> userMap = ThreadLocalUtil.get();
-        comment.setUserId((Integer) userMap.get("id"));
+        comment.setUserId(requireCurrentUserId());
 
         articleCommentMapper.insert(comment);
     }
 
     @Override
     public List<ArticleComment> listByArticleId(Integer articleId) {
-        return articleCommentMapper.findByArticleId(articleId, currentUserId());
+        return articleCommentMapper.findByArticleId(articleId, currentUserIdOrNull());
     }
 
     @Override
     public String toggleLike(Integer commentId) {
-        Integer userId = currentUserId();
+        Integer userId = requireCurrentUserId();
         int count = articleCommentMapper.checkCommentLiked(userId, commentId);
         if (count > 0) {
             articleCommentMapper.deleteCommentLike(userId, commentId);
@@ -41,8 +41,20 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
         return "点赞成功";
     }
 
-    private Integer currentUserId() {
+    private Integer currentUserIdOrNull() {
         Map<String, Object> userMap = ThreadLocalUtil.get();
-        return (Integer) userMap.get("id");
+        if (userMap == null) {
+            return null;
+        }
+        Object id = userMap.get("id");
+        return id instanceof Number ? ((Number) id).intValue() : null;
+    }
+
+    private Integer requireCurrentUserId() {
+        Integer userId = currentUserIdOrNull();
+        if (userId == null) {
+            throw new BusinessException("请先登录");
+        }
+        return userId;
     }
 }

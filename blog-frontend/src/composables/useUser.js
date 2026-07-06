@@ -1,24 +1,27 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import request, { apiData } from '../utils/request'
+import { normalizeUserMedia } from '../utils/media'
 
 const token = ref(localStorage.getItem('token') || '')
-const userInfo = ref(JSON.parse(localStorage.getItem('user') || 'null'))
+const userInfo = ref(normalizeUserMedia(JSON.parse(localStorage.getItem('user') || 'null')))
 const showAuthDialog = ref(false)
 const isLoginMode = ref(true)
 const authForm = ref({ username: '', password: '', nickname: '', email: '' })
 const authLoading = ref(false)
 
 function saveSession(rawToken, user) {
+  const displayUser = normalizeUserMedia(user)
   token.value = rawToken
-  userInfo.value = user
+  userInfo.value = displayUser
   localStorage.setItem('token', rawToken)
-  localStorage.setItem('user', JSON.stringify(user))
+  localStorage.setItem('user', JSON.stringify(displayUser))
 }
 
 function saveUser(user) {
-  userInfo.value = user
-  localStorage.setItem('user', JSON.stringify(user))
+  const displayUser = normalizeUserMedia(user)
+  userInfo.value = displayUser
+  localStorage.setItem('user', JSON.stringify(displayUser))
 }
 
 function clearSession() {

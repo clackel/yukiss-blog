@@ -41,7 +41,7 @@
             :before-upload="beforeUpload"
           >
             <div class="avatar-wrapper">
-              <el-avatar :size="132" :src="userInfo.avatar" />
+              <el-avatar :size="132" :src="mediaUrl(userInfo.avatar)" />
               <div class="avatar-mask">
                 <el-icon size="24"><Camera /></el-icon>
                 <span>更换头像</span>
@@ -151,6 +151,7 @@ import { useRouter } from 'vue-router'
 import { Camera, User, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request, { API_BASE_URL, apiData } from '../utils/request'
+import { mediaUrl } from '../utils/media'
 import { useUser } from '../composables/useUser'
 
 const router = useRouter()

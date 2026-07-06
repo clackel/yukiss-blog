@@ -13,7 +13,7 @@
         <el-col :xs="24" :md="6">
           <el-card class="glass-card profile-card" shadow="hover">
             <div v-if="userInfo">
-              <el-avatar :size="90" :src="userInfo.avatar" class="profile-avatar" />
+              <el-avatar :size="90" :src="mediaUrl(userInfo.avatar)" class="profile-avatar" />
               <h2 class="profile-name">{{ userInfo.nickname }}</h2>
               <p class="profile-moto">你好，异次元旅人</p>
               <el-button type="danger" plain size="small" @click="doLogout" style="margin-top: 10px;">
@@ -239,6 +239,7 @@ import coverImg from '../assets/cover.png'
 import { useArticles } from '../composables/useArticles'
 import { useForm } from '../composables/useForm'
 import { formatDate, getDaysSince } from '../utils/date'
+import { mediaUrl } from '../utils/media'
 import { ElMessage } from 'element-plus'
 import { InfoFilled, DataAnalysis, Calendar, EditPen, ArrowRight, User, Lock, SwitchButton, Star, Message } from '@element-plus/icons-vue'
 import { useUser } from '../composables/useUser'
