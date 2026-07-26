@@ -1,10 +1,12 @@
-package moon.yukiss.service;
+package moon.yukiss.service.impl;
 
 import moon.yukiss.common.BusinessException;
 import moon.yukiss.dto.RegisterRequest;
 import moon.yukiss.dto.UpdateProfileRequest;
 import moon.yukiss.entity.User;
 import moon.yukiss.mapper.UserMapper;
+import moon.yukiss.service.EmailCodeService;
+import moon.yukiss.service.UserService;
 import moon.yukiss.utils.PasswordHasher;
 import org.springframework.stereotype.Service;
 

@@ -28,7 +28,7 @@ yukiss-blog/
 │  │  ├─ service/              # 业务逻辑层
 │  │  └─ utils/                # JWT、ThreadLocal 工具
 │  ├─ src/main/resources/
-│  │  ├─ application.properties # 后端配置
+│  │  ├─ application.yml        # 后端配置
 │  │  └─ static/               # 已打包的前端静态文件
 │  └─ pom.xml                  # Maven 依赖和构建配置
 │
@@ -91,6 +91,6 @@ VITE_API_BASE_URL=http://localhost:4000
 ## 本次整理后的约定
 
 - 前端所有业务请求统一走 `src/utils/request.js`。
-- 后端可变配置统一放在 `application.properties`，并支持环境变量覆盖。
+- 后端可变配置统一放在 `application.yml`，并支持环境变量覆盖。
 - 上传文件目录由 `app.upload.dir` 控制，启动时会自动创建。
 - 开发日志、构建产物、上传文件不会进入 Git。

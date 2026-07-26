@@ -1,7 +1,8 @@
-package moon.yukiss.service;
+package moon.yukiss.service.impl;
 
 import moon.yukiss.entity.Article;
 import moon.yukiss.mapper.ArticleMapper;
+import moon.yukiss.service.ArticleService;
 import moon.yukiss.common.BusinessException;
 import moon.yukiss.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     private Integer currentUserIdOrNull() {
-        Map<String,Object> map = ThreadLocalUtil.get();
+        Map<String, Object> map = ThreadLocalUtil.get();
         if (map == null) {
             return null;
         }

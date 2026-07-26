@@ -1,6 +1,7 @@
-package moon.yukiss.service;
+package moon.yukiss.service.impl;
 
 import moon.yukiss.mapper.ArticleLikeMapper;
+import moon.yukiss.service.ArticleLikeService;
 import moon.yukiss.utils.ThreadLocalUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,7 +24,7 @@ public class ArticleLikeServiceImpl implements ArticleLikeService {
         if (count > 0) {
             articleLikeMapper.deleteLike(userid, articleId);
             return "取消点赞";
-        }else  {
+        } else {
             articleLikeMapper.addLike(userid, articleId);
             return "点赞成功";
         }
