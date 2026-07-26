@@ -1,268 +1,399 @@
 <template>
-  <div class="community-page">
+  <main class="page-shell community-page">
     <section class="community-hero" :style="{ backgroundImage: `url(${cardBgImg})` }">
-      <div class="community-hero-mask">
-        <span class="section-kicker">Discovery</span>
-        <h1>社区发现</h1>
-        <p>在这里翻阅来自不同旅人的公开记录，找到同频的灵感坐标。</p>
+      <div class="community-hero__mask">
+        <span class="section-kicker">Public feed</span>
+        <h1>从朋友的文字里，<br>发现另一种日常</h1>
+        <p>按时间阅读新故事，或看看最近最受欢迎的灵感。</p>
       </div>
     </section>
 
-    <div class="community-layout">
-      <main class="community-feed">
-        <div class="feed-toolbar glass-card">
-          <div>
-            <span class="section-kicker">Public Feed</span>
-            <h2 class="section-title">全站投稿</h2>
-            <p class="section-desc">按发布时间排序，越新的灵感越靠前。</p>
-          </div>
-          <el-button type="primary" round class="anime-btn" @click="fetchArticles">
-            <el-icon><Refresh /></el-icon> 刷新
-          </el-button>
+    <section class="community-layout">
+      <div class="community-main">
+        <div class="search-panel glass-card">
+          <el-input
+            ref="searchInput"
+            v-model="draftKeyword"
+            clearable
+            maxlength="80"
+            size="large"
+            placeholder="搜索标题、正文或作者"
+            @clear="submitSearch"
+            @keyup.enter="submitSearch"
+          >
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <el-button type="primary" size="large" class="anime-btn" @click="submitSearch">搜索</el-button>
         </div>
 
-        <template v-if="isLoading">
-          <el-card v-for="index in 4" :key="index" class="glass-card community-card" shadow="never">
-            <el-skeleton animated :rows="3" />
-          </el-card>
-        </template>
-
-        <el-card v-else-if="errorMessage" class="glass-card community-empty" shadow="hover">
-          <el-empty description="频道暂时连接失败">
-            <el-button type="primary" round class="anime-btn" @click="fetchArticles">重新加载</el-button>
-          </el-empty>
-        </el-card>
-
-        <el-card v-else-if="!articles.length" class="glass-card community-empty" shadow="hover">
-          <el-empty description="社区频道还很安静，等待第一篇公开投稿" />
-        </el-card>
-
-        <el-card v-else v-for="article in articles" :key="article.id" class="glass-card community-card" shadow="hover" @click="openArticle(article.id)">
-          <div class="community-card-main">
-            <el-avatar :size="46" :src="mediaUrl(article.authorAvatar)" class="community-avatar">
-              {{ getAuthorInitial(article) }}
-            </el-avatar>
-            <div class="community-card-content">
-              <div class="community-card-top">
-                <h3>{{ article.title }}</h3>
-                <span>{{ formatDate(article.createTime) }}</span>
-              </div>
-              <p>{{ article.content }}</p>
-              <div class="community-tags">
-                <span>#公开频道</span>
-                <span>#{{ article.authorNickname || '神秘旅人' }}</span>
-                <span>♥ {{ article.likeCount || 0 }}</span>
-                <span>评论 {{ article.commentCount || 0 }}</span>
-              </div>
-            </div>
+        <div class="feed-toolbar glass-card">
+          <div>
+            <span class="section-kicker">Discovery</span>
+            <h2 class="section-title">{{ keyword ? `“${keyword}” 的结果` : '全部故事' }}</h2>
+            <p class="section-desc">共 {{ pageData.total }} 篇，当前第 {{ pageData.page }} 页。</p>
           </div>
-        </el-card>
-      </main>
+          <div class="sort-switch" role="group" aria-label="文章排序">
+            <button :class="{ active: sort === 'latest' }" type="button" @click="changeSort('latest')">最新</button>
+            <button :class="{ active: sort === 'popular' }" type="button" @click="changeSort('popular')">热门</button>
+          </div>
+        </div>
+
+        <div v-if="isLoading" class="feed-list">
+          <el-skeleton v-for="index in 4" :key="index" animated :rows="5" class="glass-card loading-card" />
+        </div>
+
+        <el-empty v-else-if="errorMessage" class="glass-card empty-state" description="频道暂时连接失败">
+          <el-button type="primary" plain @click="loadPage">重新加载</el-button>
+        </el-empty>
+
+        <el-empty
+          v-else-if="!pageData.items.length"
+          class="glass-card empty-state"
+          :description="keyword ? '没有找到匹配的文章，换个关键词试试' : '社区还很安静，等待第一篇文章'"
+        >
+          <el-button v-if="keyword" type="primary" plain @click="clearSearch">清除搜索</el-button>
+          <el-button v-else-if="token" type="primary" class="anime-btn" @click="router.push('/editor')">写第一篇</el-button>
+          <el-button v-else type="primary" class="anime-btn" @click="openAuth('register', '/editor')">注册并开始写作</el-button>
+        </el-empty>
+
+        <div v-else class="feed-list">
+          <ArticleCard
+            v-for="article in pageData.items"
+            :key="article.id"
+            :article="article"
+            @open="openArticle"
+          />
+        </div>
+
+        <div v-if="pageData.totalPages > 1" class="pagination-wrap">
+          <el-pagination
+            background
+            layout="prev, pager, next"
+            :current-page="pageData.page"
+            :page-count="pageData.totalPages"
+            @current-change="changePage"
+          />
+        </div>
+      </div>
 
       <aside class="community-aside">
-        <el-card class="glass-card side-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <el-icon style="vertical-align: middle; margin-right: 4px;"><Connection /></el-icon> 频道状态
+        <div class="glass-card aside-card">
+          <span class="section-kicker">Channel pulse</span>
+          <h3>频道状态</h3>
+          <div class="stats">
+            <div>
+              <b>{{ pageData.total }}</b>
+              <span>公开文章</span>
             </div>
-          </template>
-          <div class="stat-grid">
-            <div class="stat-box">
-              <span>投稿</span>
-              <b>{{ articles.length }}</b>
-            </div>
-            <div class="stat-box">
-              <span>作者</span>
-              <b>{{ authorCount }}</b>
+            <div>
+              <b>{{ sort === 'latest' ? '新' : '热' }}</b>
+              <span>当前排序</span>
             </div>
           </div>
-        </el-card>
+        </div>
 
-        <el-card class="glass-card side-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <el-icon style="vertical-align: middle; margin-right: 4px;"><Compass /></el-icon> 推荐探索
-            </div>
-          </template>
-          <div class="vibe-list">
-            <span>新番碎碎念</span>
-            <span>技术笔记</span>
-            <span>生活记录</span>
-            <span>灵感短打</span>
-          </div>
-        </el-card>
+        <div class="glass-card aside-card">
+          <span class="section-kicker">Writing prompt</span>
+          <h3>今天写什么？</h3>
+          <p>一件刚学会的小事、一段想保存的心情，或者一个还没想完整的念头。</p>
+          <el-button v-if="token" text class="write-link" @click="router.push('/editor')">写下它 →</el-button>
+          <el-button v-else text class="write-link" @click="openAuth('login', '/editor')">登录后写作 →</el-button>
+        </div>
       </aside>
-    </div>
-  </div>
+    </section>
+  </main>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { Compass, Connection, Refresh } from '@element-plus/icons-vue'
+import { nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { Search } from '@element-plus/icons-vue'
+import { useRoute, useRouter } from 'vue-router'
+import ArticleCard from '../components/ArticleCard.vue'
+import { useUser } from '../composables/useUser'
+import { buildArticleQuery, normalizeArticleQuery } from '../utils/articleQuery'
+import request, { apiData } from '../utils/request'
 import cardBgImg from '../assets/card-bg.jpg'
-import { useArticles } from '../composables/useArticles'
-import { formatDate } from '../utils/date'
-import { mediaUrl } from '../utils/media'
 
-const { articles, isLoading, errorMessage, fetchArticles } = useArticles()
+const route = useRoute()
 const router = useRouter()
-
-const authorCount = computed(() => {
-  const authors = articles.value.map(article => article.authorNickname || article.authorId).filter(Boolean)
-  return new Set(authors).size
+const { token, openAuth } = useUser()
+const searchInput = ref(null)
+const draftKeyword = ref('')
+const keyword = ref('')
+const sort = ref('latest')
+const isLoading = ref(false)
+const errorMessage = ref('')
+const pageData = reactive({
+  items: [],
+  total: 0,
+  page: 1,
+  pageSize: 10,
+  totalPages: 0,
 })
 
-const getAuthorInitial = (article) => {
-  const name = article.authorNickname || '旅'
-  return name.slice(0, 1)
+const syncFromRoute = () => {
+  const normalized = normalizeArticleQuery(route.query)
+  keyword.value = normalized.keyword
+  draftKeyword.value = keyword.value
+  sort.value = normalized.sort
+  pageData.page = normalized.page
+}
+
+const loadPage = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+  try {
+    const data = apiData(await request.get('/articles/page', {
+      params: {
+        page: pageData.page,
+        pageSize: pageData.pageSize,
+        keyword: keyword.value || undefined,
+        sort: sort.value,
+      },
+    }))
+    Object.assign(pageData, data)
+  } catch {
+    errorMessage.value = '文章加载失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const updateRoute = (overrides = {}) => {
+  const nextState = {
+    keyword: keyword.value,
+    sort: sort.value,
+    page: pageData.page,
+    ...overrides,
+  }
+  router.push({ path: '/community', query: buildArticleQuery(nextState) })
+}
+
+const submitSearch = () => {
+  keyword.value = draftKeyword.value.trim()
+  pageData.page = 1
+  updateRoute({ keyword: keyword.value, page: 1 })
+}
+
+const clearSearch = () => {
+  draftKeyword.value = ''
+  keyword.value = ''
+  pageData.page = 1
+  updateRoute({ keyword: '', page: 1 })
+}
+
+const changeSort = (value) => {
+  if (sort.value === value) return
+  sort.value = value
+  pageData.page = 1
+  updateRoute({ sort: value, page: 1 })
+}
+
+const changePage = (value) => {
+  pageData.page = value
+  updateRoute({ page: value })
+  window.scrollTo({ top: 360, behavior: 'smooth' })
 }
 
 const openArticle = (id) => {
   router.push(`/articles/${id}`)
 }
 
-onMounted(() => fetchArticles())
+watch(
+  () => route.fullPath,
+  async () => {
+    syncFromRoute()
+    await loadPage()
+    if (route.query.focus === 'search') {
+      await nextTick()
+      searchInput.value?.focus()
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(async () => {
+  if (route.query.focus === 'search') {
+    await nextTick()
+    searchInput.value?.focus()
+  }
+})
 </script>
 
 <style scoped>
-.community-page {
-  min-height: 100vh;
-  padding: 90px 20px 60px;
-  background:
-    linear-gradient(180deg, rgba(255, 248, 252, 0.9), rgba(244, 245, 247, 1) 340px);
-}
 .community-hero {
-  max-width: 1180px;
-  min-height: 220px;
-  margin: 0 auto 24px;
-  border-radius: 16px;
+  min-height: 290px;
+  margin-bottom: 24px;
   overflow: hidden;
+  border-radius: 24px;
   background-size: cover;
   background-position: center;
   box-shadow: var(--theme-shadow);
 }
-.community-hero-mask {
-  min-height: 220px;
-  padding: 42px;
-  color: #fff;
-  background: linear-gradient(90deg, rgba(40, 34, 48, 0.72), rgba(40, 34, 48, 0.18));
+
+.community-hero__mask {
+  min-height: inherit;
+  padding: 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  color: white;
+  background: linear-gradient(90deg, rgba(30, 24, 34, 0.82), rgba(30, 24, 34, 0.26));
 }
+
 .community-hero h1 {
-  margin: 8px 0 10px;
-  font-size: 34px;
-  line-height: 1.2;
+  margin: 12px 0;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.15;
 }
+
 .community-hero p {
-  max-width: 520px;
   margin: 0;
-  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 16px;
 }
+
 .community-layout {
-  max-width: 1180px;
-  margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 290px;
   gap: 24px;
 }
-.community-feed {
+
+.community-main {
   min-width: 0;
 }
-.community-card {
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.community-card:hover {
-  transform: translateY(-2px);
-}
-.community-card .el-card__body {
-  padding: 0;
-}
-.community-card-main {
-  display: flex;
-  gap: 16px;
-  padding: 22px;
-}
-.community-avatar {
-  flex: 0 0 auto;
-  background: rgba(255, 107, 177, 0.16);
-  color: var(--theme-pink);
-  font-weight: 800;
-}
-.community-card-content {
-  min-width: 0;
-  flex: 1;
-}
-.community-card-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: flex-start;
-}
-.community-card-top h3 {
-  margin: 0;
-  color: #333;
-  font-size: 21px;
-  line-height: 1.35;
-}
-.community-card-top span {
-  flex: 0 0 auto;
-  color: #999;
-  font-size: 13px;
-}
-.community-card-content p {
-  margin: 12px 0 16px;
-  color: #555;
-  line-height: 1.7;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.community-tags {
-  display: flex;
-  flex-wrap: wrap;
+
+.search-panel {
+  margin-bottom: 18px;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
 }
-.community-tags span {
-  padding: 5px 10px;
-  border-radius: 8px;
-  background: rgba(255, 107, 177, 0.1);
-  color: var(--theme-pink);
-  font-size: 12px;
+
+.feed-toolbar {
+  margin-bottom: 18px;
+}
+
+.sort-switch {
+  padding: 4px;
+  border-radius: 13px;
+  display: flex;
+  background: var(--surface-soft);
+}
+
+.sort-switch button {
+  min-width: 64px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
   font-weight: 700;
 }
-.community-empty {
-  padding: 28px 0;
+
+.sort-switch button.active {
+  color: white;
+  background: var(--theme-pink);
+  box-shadow: 0 5px 12px var(--theme-glow);
 }
+
+.feed-list {
+  display: grid;
+  gap: 16px;
+}
+
+.loading-card {
+  padding: 24px;
+}
+
+.pagination-wrap {
+  padding: 24px 0 8px;
+  display: flex;
+  justify-content: center;
+}
+
 .community-aside {
-  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+.aside-card {
+  padding: 24px;
+}
+
+.aside-card h3 {
+  margin: 8px 0 16px;
+  color: var(--text-strong);
+}
+
+.aside-card p {
+  color: var(--text-muted);
+  line-height: 1.75;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stats div {
+  padding: 16px 10px;
+  border-radius: 13px;
+  text-align: center;
+  background: var(--accent-soft);
+}
+
+.stats b,
+.stats span {
+  display: block;
+}
+
+.stats b {
+  color: var(--theme-pink);
+  font-size: 24px;
+}
+
+.stats span {
+  margin-top: 3px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.write-link {
+  padding-left: 0;
+  color: var(--theme-pink);
+  font-weight: 800;
 }
 
 @media (max-width: 900px) {
   .community-layout {
     grid-template-columns: 1fr;
   }
-  .community-hero-mask {
-    padding: 30px 24px;
+
+  .community-aside {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
-  .community-page {
-    padding-left: 14px;
-    padding-right: 14px;
+@media (max-width: 620px) {
+  .community-hero__mask {
+    padding: 34px 24px;
   }
-  .community-card-main,
-  .community-card-top {
-    flex-direction: column;
+
+  .search-panel {
+    grid-template-columns: 1fr;
   }
-  .community-card-top span {
-    flex: auto;
+
+  .feed-toolbar {
+    align-items: flex-start;
+  }
+
+  .community-aside {
+    grid-template-columns: 1fr;
   }
 }
 </style>

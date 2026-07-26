@@ -1,14 +1,15 @@
 package moon.yukiss.service;
 
+import moon.yukiss.common.LikeResult;
+import moon.yukiss.dto.CommentRequest;
 import moon.yukiss.entity.ArticleComment;
 
 import java.util.List;
 
 public interface ArticleCommentService {
-
-    void addComment(ArticleComment comment);
+    ArticleComment addComment(CommentRequest request);
 
     List<ArticleComment> listByArticleId(Integer articleId);
 
-    String toggleLike(Integer commentId);
+    LikeResult toggleLike(Integer commentId);
 }

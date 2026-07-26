@@ -1,220 +1,369 @@
 <template>
-  <div class="landing-page">
+  <main class="landing-page">
     <section class="landing-hero" :style="{ backgroundImage: `url(${coverImg})` }">
       <div class="landing-mask">
         <div class="landing-copy">
-          <span class="section-kicker">Yukiss Blog</span>
-          <h1>记录灵感，也遇见同频的人</h1>
-          <p>写下你的日常、代码笔记和闪念，把它们收进一个安静又明亮的个人空间。</p>
+          <span class="section-kicker">Yukiss Blog · Friends only, stories welcome</span>
+          <h1>记录灵感，<br>也遇见同频的人</h1>
+          <p>一个给朋友们写长文、分享生活与交换想法的小小社区。无需登录也能阅读，想回应时再加入我们。</p>
           <div class="landing-actions">
-            <el-button type="primary" round class="anime-btn" @click="showLogin">
-              <el-icon><User /></el-icon>
-              登录
+            <el-button type="primary" round size="large" class="anime-btn" @click="router.push('/community')">
+              浏览社区
+              <el-icon><ArrowRight /></el-icon>
             </el-button>
-            <el-button round class="ghost-btn" @click="showRegister">注册</el-button>
+            <el-button v-if="token" round size="large" class="hero-ghost" @click="router.push('/editor')">
+              写一篇
+            </el-button>
+            <el-button v-else round size="large" class="hero-ghost" @click="openAuth('register')">
+              加入 Yukiss
+            </el-button>
+          </div>
+        </div>
+
+        <div class="landing-orbit" aria-hidden="true">
+          <div class="orbit-card orbit-card--one">
+            <span>今天的灵感</span>
+            <b>值得被好好记录</b>
+          </div>
+          <div class="orbit-card orbit-card--two">
+            <span>Markdown</span>
+            <b>让表达保持清爽</b>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="landing-preview">
-      <div class="preview-item">
-        <b>写作</b>
-        <span>沉淀自己的文章和碎片</span>
+    <section class="landing-features" aria-label="Yukiss 特色">
+      <div>
+        <span>01</span>
+        <b>安静写作</b>
+        <p>用 Markdown 写下长文、代码和日常片段。</p>
       </div>
-      <div class="preview-item">
-        <b>社区</b>
-        <span>浏览公开投稿和灵感</span>
+      <div>
+        <span>02</span>
+        <b>朋友社区</b>
+        <p>公开阅读，登录后点赞、评论和回复。</p>
       </div>
-      <div class="preview-item">
-        <b>资料</b>
-        <span>维护个人头像与主页信息</span>
+      <div>
+        <span>03</span>
+        <b>保持简单</b>
+        <p>没有复杂推荐算法，只按时间与真实互动发现内容。</p>
       </div>
     </section>
 
-    <el-dialog v-model="showAuthDialog" :title="isLoginMode ? '登录 Yukiss' : '注册 Yukiss'" width="400px" center class="auth-dialog">
-      <el-input v-model="authForm.username" placeholder="请输入用户名" class="m-b-16 dialog-input">
-        <template #prefix><el-icon><User /></el-icon></template>
-      </el-input>
-
-      <el-input v-model="authForm.password" type="password" placeholder="请输入密码" show-password class="m-b-16 dialog-input">
-        <template #prefix><el-icon><Lock /></el-icon></template>
-      </el-input>
-
-      <el-input v-if="!isLoginMode" v-model="authForm.nickname" placeholder="请输入昵称（选填）" class="m-b-16 dialog-input">
-        <template #prefix><el-icon><EditPen /></el-icon></template>
-      </el-input>
-
-      <el-input v-if="!isLoginMode" v-model="authForm.email" placeholder="请输入邮箱（用于找回账号）" class="m-b-16 dialog-input">
-        <template #prefix><el-icon><Message /></el-icon></template>
-      </el-input>
-
-      <div class="auth-actions">
-        <el-button type="primary" class="anime-btn" :loading="authLoading" @click="isLoginMode ? doLogin() : doRegister()">
-          {{ isLoginMode ? '登录' : '立即注册' }}
+    <section class="latest-section">
+      <div class="latest-heading">
+        <div>
+          <span class="section-kicker">Latest stories</span>
+          <h2 class="section-title">最近写下的故事</h2>
+          <p class="section-desc">先读几篇，再决定要不要留下来。</p>
+        </div>
+        <el-button text class="more-link" @click="router.push('/community')">
+          查看全部 <el-icon><ArrowRight /></el-icon>
         </el-button>
-        <button class="mode-link" type="button" @click="isLoginMode = !isLoginMode">
-          {{ isLoginMode ? '还没有账号？马上注册' : '已有账号？返回登录' }}
-        </button>
       </div>
-    </el-dialog>
-  </div>
+
+      <div v-if="isLoading" class="latest-grid">
+        <el-skeleton v-for="index in 3" :key="index" animated :rows="5" class="glass-card skeleton-card" />
+      </div>
+
+      <el-empty v-else-if="errorMessage" class="glass-card empty-state" description="暂时无法加载文章">
+        <el-button type="primary" plain @click="loadLatest">重新加载</el-button>
+      </el-empty>
+
+      <el-empty v-else-if="!latestArticles.length" class="glass-card empty-state" description="还没有文章，第一篇故事正在等待被写下">
+        <el-button v-if="token" type="primary" class="anime-btn" @click="router.push('/editor')">写第一篇</el-button>
+        <el-button v-else type="primary" class="anime-btn" @click="openAuth('register', '/editor')">注册并开始写作</el-button>
+      </el-empty>
+
+      <div v-else class="latest-grid">
+        <ArticleCard
+          v-for="article in latestArticles"
+          :key="article.id"
+          :article="article"
+          @open="openArticle"
+        />
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <b>Yukiss</b>
+      <span>把朋友们的故事留在一处。</span>
+    </footer>
+  </main>
 </template>
 
 <script setup>
-import { watch } from 'vue'
+import { onMounted, ref } from 'vue'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { EditPen, Lock, Message, User } from '@element-plus/icons-vue'
-import coverImg from '../assets/cover.png'
+import ArticleCard from '../components/ArticleCard.vue'
 import { useUser } from '../composables/useUser'
+import request, { apiData } from '../utils/request'
+import coverImg from '../assets/cover.png'
 
 const router = useRouter()
-const {
-  token,
-  showAuthDialog,
-  isLoginMode,
-  authForm,
-  authLoading,
-  doLogin,
-  doRegister,
-} = useUser()
+const { token, openAuth } = useUser()
+const latestArticles = ref([])
+const isLoading = ref(false)
+const errorMessage = ref('')
 
-const showLogin = () => {
-  isLoginMode.value = true
-  showAuthDialog.value = true
-}
-
-const showRegister = () => {
-  isLoginMode.value = false
-  showAuthDialog.value = true
-}
-
-watch(token, (value) => {
-  if (value) {
-    router.push('/home')
+const loadLatest = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+  try {
+    const data = apiData(await request.get('/articles/page', {
+      params: { page: 1, pageSize: 3, sort: 'latest' },
+    }))
+    latestArticles.value = data?.items || []
+  } catch {
+    errorMessage.value = '文章加载失败'
+  } finally {
+    isLoading.value = false
   }
-}, { immediate: true })
+}
+
+const openArticle = (id) => {
+  router.push(`/articles/${id}`)
+}
+
+onMounted(loadLatest)
 </script>
 
 <style scoped>
 .landing-page {
   min-height: 100vh;
-  padding-top: 60px;
-  background: #f4f5f7;
+  padding-top: var(--nav-height);
 }
+
 .landing-hero {
-  min-height: calc(100vh - 190px);
+  min-height: min(720px, calc(100vh - var(--nav-height)));
   background-size: cover;
   background-position: center;
 }
+
 .landing-mask {
-  min-height: calc(100vh - 190px);
-  padding: 72px 24px;
-  box-sizing: border-box;
-  background: linear-gradient(90deg, rgba(29, 27, 35, 0.74), rgba(29, 27, 35, 0.26));
-  display: flex;
+  min-height: inherit;
+  padding: 72px max(24px, calc((100vw - 1180px) / 2));
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
   align-items: center;
+  gap: 56px;
+  background:
+    linear-gradient(90deg, rgba(25, 21, 30, 0.82), rgba(25, 21, 30, 0.4)),
+    linear-gradient(180deg, transparent 70%, rgba(25, 21, 30, 0.25));
 }
+
 .landing-copy {
-  width: min(680px, 100%);
-  margin-left: max(24px, calc((100vw - 1180px) / 2));
-  color: #fff;
+  max-width: 720px;
+  color: white;
 }
-.section-kicker {
-  color: #ff9bc9;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
+
 .landing-copy h1 {
-  margin: 12px 0 16px;
-  font-size: 46px;
-  line-height: 1.18;
-  letter-spacing: 0;
+  margin: 16px 0 20px;
+  font-size: clamp(46px, 7vw, 78px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
 }
+
 .landing-copy p {
-  max-width: 560px;
+  max-width: 610px;
   margin: 0;
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 17px;
-  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: clamp(16px, 2vw, 19px);
+  line-height: 1.85;
 }
+
 .landing-actions {
+  margin-top: 32px;
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 28px;
+  gap: 12px;
 }
-.anime-btn {
-  background: var(--theme-pink) !important;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(255, 107, 177, 0.3);
-}
-.ghost-btn {
-  color: #fff !important;
-  border-color: rgba(255, 255, 255, 0.62) !important;
+
+.hero-ghost {
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
   background: rgba(255, 255, 255, 0.08) !important;
 }
-.landing-preview {
-  max-width: 1180px;
-  margin: -34px auto 0;
-  padding: 0 24px 54px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+
+.landing-orbit {
+  position: relative;
+  height: 360px;
+}
+
+.landing-orbit::before,
+.landing-orbit::after {
+  content: '';
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.landing-orbit::before {
+  inset: 25px 15px;
+}
+
+.landing-orbit::after {
+  inset: 72px 58px;
+}
+
+.orbit-card {
+  position: absolute;
+  z-index: 2;
+  width: 220px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 18px;
+  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+}
+
+.orbit-card span,
+.orbit-card b {
+  display: block;
+}
+
+.orbit-card span {
+  margin-bottom: 7px;
+  color: #ffadd1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.orbit-card--one {
+  top: 56px;
+  left: 0;
+}
+
+.orbit-card--two {
+  right: 0;
+  bottom: 54px;
+}
+
+.landing-features {
+  width: min(1120px, calc(100% - 40px));
+  margin: -54px auto 0;
   position: relative;
   z-index: 2;
-}
-.preview-item {
-  min-height: 92px;
-  padding: 20px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.62);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border-soft);
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--surface-raised);
   box-shadow: var(--theme-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.landing-features > div {
+  padding: 28px;
+}
+
+.landing-features > div + div {
+  border-left: 1px solid var(--border-soft);
+}
+
+.landing-features span {
+  color: var(--theme-pink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.landing-features b {
+  display: block;
+  margin: 8px 0;
+  color: var(--text-strong);
+  font-size: 19px;
+}
+
+.landing-features p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.latest-section {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 92px 0 70px;
+}
+
+.latest-heading {
+  margin-bottom: 26px;
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.more-link {
+  color: var(--theme-pink);
+  font-weight: 800;
+}
+
+.latest-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.skeleton-card {
+  padding: 24px;
+}
+
+.landing-footer {
+  padding: 32px 20px 42px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 13px;
 }
-.preview-item b {
+
+.landing-footer b {
   color: var(--theme-pink);
-  font-size: 18px;
 }
-.preview-item span {
-  color: #666;
-  font-size: 14px;
-}
-.auth-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 18px;
-}
-.dialog-input {
-  margin-bottom: 18px !important;
-}
-.auth-actions .el-button {
-  width: 100%;
-}
-.mode-link {
-  border: 0;
-  background: transparent;
-  color: var(--theme-pink);
-  cursor: pointer;
-  font-weight: 700;
+
+@media (max-width: 900px) {
+  .landing-mask {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-orbit {
+    display: none;
+  }
+
+  .latest-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
-  .landing-copy {
-    margin-left: 0;
+  .landing-mask {
+    min-height: 620px;
+    padding: 54px 22px 94px;
   }
+
   .landing-copy h1 {
-    font-size: 34px;
+    font-size: 46px;
   }
-  .landing-preview {
+
+  .landing-features {
     grid-template-columns: 1fr;
+  }
+
+  .landing-features > div + div {
+    border-top: 1px solid var(--border-soft);
+    border-left: 0;
+  }
+
+  .latest-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

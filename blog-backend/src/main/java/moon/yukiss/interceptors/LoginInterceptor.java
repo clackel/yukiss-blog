@@ -1,54 +1,91 @@
 package moon.yukiss.interceptors;
 
-import moon.yukiss.utils.JwtUtils;
-import moon.yukiss.utils.ThreadLocalUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import moon.yukiss.common.ApiResponse;
+import moon.yukiss.utils.JwtUtils;
+import moon.yukiss.utils.ThreadLocalUtil;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.util.Map;
 
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
-
     private final JwtUtils jwtUtils;
+    private final ObjectMapper objectMapper;
 
-    public LoginInterceptor(JwtUtils jwtUtils) {
+    public LoginInterceptor(JwtUtils jwtUtils, ObjectMapper objectMapper) {
         this.jwtUtils = jwtUtils;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
-            throws Exception {
-        // 放行所有的 OPTIONS 请求（跨域预检请求）
-        if ("OPTIONS".equals(request.getMethod())) {
+    public boolean preHandle(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Object handler
+    ) throws IOException {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        if ("GET".equals(request.getMethod()) && request.getRequestURI().startsWith("/articles")) {
-            return true;
-        }
-        // 1. 从请求头 (Header) 中取出名叫 "Authorization" 的手环 (Token)
+
         String token = request.getHeader("Authorization");
+        if (isPublicRead(request)) {
+            if (token != null && !token.isBlank()) {
+                try {
+                    ThreadLocalUtil.set(jwtUtils.parseToken(token));
+                } catch (Exception ignored) {
+                    ThreadLocalUtil.remove();
+                }
+            }
+            return true;
+        }
+
+        if (token == null || token.isBlank()) {
+            writeUnauthorized(response);
+            return false;
+        }
 
         try {
-            // 2. 验手环：调用 JwtUtils 解析 Token
             Map<String, Object> claims = jwtUtils.parseToken(token);
-
             ThreadLocalUtil.set(claims);
-
-            return true; // 验证通过，放行！
-        } catch (Exception e) {
-            // 如果解析报错（Token 失效、造假或没传），直接拦截并返回 401 状态码 (未授权)
-            response.setStatus(401);
-            return false; // 不予放行
+            return true;
+        } catch (Exception ex) {
+            ThreadLocalUtil.remove();
+            writeUnauthorized(response);
+            return false;
         }
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
-            throws Exception {
-        // 请求处理完（比如文章存完了），必须把储物柜清空，防止内存泄漏！
+    public void afterCompletion(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Object handler,
+            Exception ex
+    ) {
         ThreadLocalUtil.remove();
+    }
+
+    private boolean isPublicRead(HttpServletRequest request) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        if (uri.equals("/articles") || uri.equals("/articles/page") || uri.equals("/comment/list")) {
+            return true;
+        }
+        return uri.startsWith("/articles/") && !uri.equals("/articles/mine");
+    }
+
+    private void writeUnauthorized(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getWriter(), ApiResponse.fail("登录状态无效，请重新登录"));
     }
 }
