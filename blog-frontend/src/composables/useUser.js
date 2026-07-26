@@ -4,11 +4,23 @@ import request, { apiData } from '../utils/request'
 import { normalizeUserMedia } from '../utils/media'
 
 const token = ref(localStorage.getItem('token') || '')
-const userInfo = ref(normalizeUserMedia(JSON.parse(localStorage.getItem('user') || 'null')))
+const userInfo = ref(normalizeUserMedia(parseStoredUser()))
 const showAuthDialog = ref(false)
 const isLoginMode = ref(true)
 const authForm = ref({ username: '', password: '', nickname: '', email: '' })
 const authLoading = ref(false)
+const authRedirect = ref('')
+
+let authExpiredListenerBound = false
+
+function parseStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null')
+  } catch {
+    localStorage.removeItem('user')
+    return null
+  }
+}
 
 function saveSession(rawToken, user) {
   const displayUser = normalizeUserMedia(user)
@@ -31,7 +43,32 @@ function clearSession() {
   localStorage.removeItem('user')
 }
 
+function bindAuthExpiredListener() {
+  if (authExpiredListenerBound || typeof window === 'undefined') return
+  window.addEventListener('yukiss:auth-expired', clearSession)
+  authExpiredListenerBound = true
+}
+
+bindAuthExpiredListener()
+
 export function useUser() {
+  const openAuth = (mode = 'login', redirect = '') => {
+    isLoginMode.value = mode !== 'register'
+    authRedirect.value = redirect
+    showAuthDialog.value = true
+  }
+
+  const closeAuth = () => {
+    showAuthDialog.value = false
+    authRedirect.value = ''
+  }
+
+  const consumeAuthRedirect = () => {
+    const redirect = authRedirect.value
+    authRedirect.value = ''
+    return redirect
+  }
+
   const doLogin = async () => {
     authLoading.value = true
     try {
@@ -43,6 +80,7 @@ export function useUser() {
       ElMessage.success('登录成功')
       showAuthDialog.value = false
       authForm.value = { username: '', password: '', nickname: '', email: '' }
+      return data.user
     } finally {
       authLoading.value = false
     }
@@ -61,9 +99,10 @@ export function useUser() {
   }
 
   const refreshMe = async () => {
-    if (!token.value) return
+    if (!token.value) return null
     const user = apiData(await request.get('/user/me'))
     saveUser(user)
+    return user
   }
 
   const doLogout = () => {
@@ -78,8 +117,12 @@ export function useUser() {
     isLoginMode,
     authForm,
     authLoading,
+    authRedirect,
     saveUser,
     clearSession,
+    openAuth,
+    closeAuth,
+    consumeAuthRedirect,
     doLogin,
     doRegister,
     doLogout,

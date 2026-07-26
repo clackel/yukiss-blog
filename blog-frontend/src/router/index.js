@@ -1,24 +1,35 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-const routes = [
-  { path: '/', component: () => import('../views/Landing.vue'), meta: { public: true } },
-  { path: '/home', component: () => import('../views/Home.vue'), meta: { requiresAuth: true } },
-  { path: '/community', component: () => import('../views/Community.vue'), meta: { requiresAuth: true } },
-  { path: '/articles/:id', component: () => import('../views/ArticleDetail.vue'), meta: { requiresAuth: true } },
-  { path: '/profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },
+export const routes = [
+  { path: '/', name: 'landing', component: () => import('../views/Landing.vue'), meta: { public: true } },
+  { path: '/community', name: 'community', component: () => import('../views/Community.vue'), meta: { public: true } },
+  { path: '/articles/:id', name: 'article-detail', component: () => import('../views/ArticleDetail.vue'), meta: { public: true } },
+  { path: '/home', name: 'home', component: () => import('../views/Home.vue'), meta: { requiresAuth: true } },
+  { path: '/editor', name: 'article-create', component: () => import('../views/ArticleEditor.vue'), meta: { requiresAuth: true } },
+  { path: '/editor/:id', name: 'article-edit', component: () => import('../views/ArticleEditor.vue'), meta: { requiresAuth: true } },
+  { path: '/profile', name: 'profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFound.vue'), meta: { public: true } },
 ]
 
-export const router = createRouter({
-  history: createWebHistory(),
-  routes,
-})
-
-router.beforeEach((to) => {
+export function authGuard(to) {
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const hasToken = Boolean(localStorage.getItem('token'))
-  if (to.meta.requiresAuth && !hasToken) {
-    return '/'
+  if (requiresAuth && !hasToken) {
+    return {
+      path: '/',
+      query: {
+        login: '1',
+        redirect: to.fullPath,
+      },
+    }
   }
-  if (to.path === '/' && hasToken) {
-    return '/home'
-  }
-})
+}
+
+export function createAppRouter(history = createWebHistory()) {
+  const appRouter = createRouter({ history, routes })
+  appRouter.beforeEach(authGuard)
+
+  return appRouter
+}
+
+export const router = createAppRouter()

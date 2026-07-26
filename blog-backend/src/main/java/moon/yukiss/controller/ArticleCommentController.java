@@ -1,12 +1,20 @@
 package moon.yukiss.controller;
 
+import jakarta.validation.Valid;
 import moon.yukiss.common.ApiResponse;
+import moon.yukiss.common.LikeResult;
+import moon.yukiss.dto.CommentRequest;
 import moon.yukiss.entity.ArticleComment;
 import moon.yukiss.service.ArticleCommentService;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/comment")
@@ -17,25 +25,18 @@ public class ArticleCommentController {
         this.commentService = commentService;
     }
 
-    // 发布评论
     @PostMapping("/add")
-    public ApiResponse<Void> add(@RequestBody ArticleComment comment){
-        commentService.addComment(comment);
-        return ApiResponse.ok("评论成功");
+    public ApiResponse<ArticleComment> add(@Valid @RequestBody CommentRequest request) {
+        return ApiResponse.ok(commentService.addComment(request));
     }
 
-    // 获取文章评论列表
     @GetMapping("/list")
-    public ApiResponse<List<ArticleComment>> list(Integer articleId){
+    public ApiResponse<List<ArticleComment>> list(@RequestParam Integer articleId) {
         return ApiResponse.ok(commentService.listByArticleId(articleId));
     }
 
     @PostMapping("/{commentId}/like")
-    public ApiResponse<Map<String, Object>> toggleLike(@PathVariable Integer commentId) {
-        String message = commentService.toggleLike(commentId);
-        return ApiResponse.ok(Map.of(
-                "message", message,
-                "liked", "点赞成功".equals(message)
-        ));
+    public ApiResponse<LikeResult> toggleLike(@PathVariable Integer commentId) {
+        return ApiResponse.ok(commentService.toggleLike(commentId));
     }
 }

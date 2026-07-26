@@ -1,7 +1,7 @@
 package moon.yukiss.service;
 
-public interface ArticleLikeService {
-    String toggleLike(Integer articleId);
+import moon.yukiss.common.LikeResult;
 
-    int countLikes(Integer articleId);
+public interface ArticleLikeService {
+    LikeResult toggleLike(Integer articleId);
 }

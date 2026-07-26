@@ -1,139 +1,316 @@
 <template>
   <div class="app-wrapper">
-    <div class="top-nav">
+    <header class="top-nav">
       <div class="nav-content">
-        <div class="logo" @click="goHome">
+        <RouterLink class="logo" to="/" aria-label="返回 Yukiss 首页">
+          <span class="logo-mark">Y</span>
           <span class="mizuki-text">Yukiss</span>
-        </div>
-        
-        <el-menu 
-          v-if="token"
-          :default-active="$route.path" 
-          class="glass-menu" 
-          mode="horizontal" 
-          router
-          :ellipsis="false"
-        >
-          <el-menu-item index="/home">
-            <el-icon><HomeFilled /></el-icon> 主页 (我的)
-          </el-menu-item>
-          <el-menu-item index="/community">
-            <el-icon><Menu /></el-icon> 社区 (发现)
-          </el-menu-item>
-          <el-menu-item index="/profile">
-            <el-icon><User /></el-icon> 个人资料
-          </el-menu-item>
-        </el-menu>
+        </RouterLink>
+
+        <nav class="desktop-nav" aria-label="主导航">
+          <RouterLink to="/community">发现</RouterLink>
+          <RouterLink v-if="token" to="/home">我的文章</RouterLink>
+          <RouterLink v-if="token" to="/editor">写文章</RouterLink>
+          <RouterLink v-if="token" to="/profile">个人资料</RouterLink>
+        </nav>
 
         <div class="nav-tools">
-          <template v-if="token">
+          <button class="icon-button" type="button" title="搜索文章" aria-label="搜索文章" @click="goSearch">
             <el-icon><Search /></el-icon>
-            <el-icon><Sunny /></el-icon>
-          </template>
-          <el-button v-else type="primary" round class="nav-login-btn" @click="showAuthDialog = true">登录</el-button>
+          </button>
+
+          <el-dropdown trigger="click" @command="setTheme">
+            <button
+              class="icon-button"
+              type="button"
+              :title="`主题：${themeLabel}`"
+              :aria-label="`主题：${themeLabel}`"
+            >
+              <el-icon>
+                <Moon v-if="effectiveTheme === 'dark'" />
+                <Sunny v-else />
+              </el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="system" :disabled="themeMode === 'system'">跟随系统</el-dropdown-item>
+                <el-dropdown-item command="light" :disabled="themeMode === 'light'">浅色模式</el-dropdown-item>
+                <el-dropdown-item command="dark" :disabled="themeMode === 'dark'">深色模式</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
+          <el-dropdown class="mobile-menu" trigger="click" @command="handleNavigation">
+            <button class="icon-button" type="button" aria-label="打开导航菜单">
+              <el-icon><Menu /></el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="/community">发现</el-dropdown-item>
+                <el-dropdown-item v-if="token" command="/home">我的文章</el-dropdown-item>
+                <el-dropdown-item v-if="token" command="/editor">写文章</el-dropdown-item>
+                <el-dropdown-item v-if="token" command="/profile">个人资料</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
+          <el-dropdown v-if="token" trigger="click" @command="handleAccountCommand">
+            <button class="user-button" type="button">
+              <el-avatar :size="32" :src="mediaUrl(userInfo?.avatar)">
+                {{ userInitial }}
+              </el-avatar>
+              <span>{{ userInfo?.nickname || userInfo?.username || '我的' }}</span>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">个人资料</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button v-else type="primary" round class="nav-login-btn" @click="openAuth('login', route.fullPath)">
+            登录
+          </el-button>
         </div>
       </div>
-    </div>
+    </header>
 
-    <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
+    <RouterView v-slot="{ Component }">
+      <Transition name="page-fade" mode="out-in">
         <component :is="Component" />
-      </transition>
-    </router-view>
+      </Transition>
+    </RouterView>
+
+    <AuthDialog />
   </div>
 </template>
 
 <script setup>
-import { HomeFilled, Menu, User, Search, Sunny } from '@element-plus/icons-vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, watch } from 'vue'
+import { Menu, Moon, Search, Sunny } from '@element-plus/icons-vue'
+import { useRoute, useRouter } from 'vue-router'
+import AuthDialog from './components/AuthDialog.vue'
+import { useTheme } from './composables/useTheme'
 import { useUser } from './composables/useUser'
+import { mediaUrl } from './utils/media'
 
+const route = useRoute()
 const router = useRouter()
-const { token, showAuthDialog } = useUser()
+const { token, userInfo, openAuth, doLogout, refreshMe } = useUser()
+const { themeMode, effectiveTheme, setTheme } = useTheme()
 
-const goHome = () => {
-  router.push(token.value ? '/home' : '/')
+const userInitial = computed(() => {
+  const label = userInfo.value?.nickname || userInfo.value?.username || '友'
+  return label.slice(0, 1)
+})
+
+const themeLabel = computed(() => ({
+  system: '跟随系统',
+  light: '浅色模式',
+  dark: '深色模式',
+})[themeMode.value])
+
+const goSearch = () => {
+  router.push({ path: '/community', query: { focus: 'search' } })
 }
+
+const handleNavigation = (path) => {
+  router.push(path)
+}
+
+const handleAccountCommand = (command) => {
+  if (command === 'profile') {
+    router.push('/profile')
+    return
+  }
+  if (command === 'logout') {
+    doLogout()
+    router.push('/')
+  }
+}
+
+watch(
+  () => [route.query.login, route.query.redirect],
+  ([login, redirect]) => {
+    if (login === '1' && !token.value) {
+      openAuth('login', typeof redirect === 'string' ? redirect : '')
+    }
+  },
+  { immediate: true }
+)
+
+watch(token, (value) => {
+  if (!value && route.meta.requiresAuth) {
+    router.replace('/')
+  }
+})
+
+onMounted(async () => {
+  if (!token.value) return
+  try {
+    await refreshMe()
+  } catch {
+    if (route.meta.requiresAuth) {
+      await router.replace('/')
+    }
+  }
+})
 </script>
 
-<style>
-/* 整个应用的底色 */
-body { margin: 0; background-color: #f4f5f7; }
-
-/* 导航栏外壳：固定在顶部，毛玻璃效果 */
+<style scoped>
 .top-nav {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px) saturate(180%); /* 苹果风玻璃模糊 */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  z-index: 999; /* 保证在最上层 */
-  display: flex;
-  justify-content: center;
+  inset: 0 0 auto;
+  height: var(--nav-height);
+  z-index: 1000;
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
 }
 
-/* 导航栏内容区约束宽度 */
 .nav-content {
-  width: 100%;
-  max-width: 1300px;
+  width: min(1180px, calc(100% - 32px));
+  height: 100%;
+  margin: 0 auto;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  gap: 28px;
 }
 
-/* Logo 样式 */
-.logo .mizuki-text {
-  font-size: 24px;
-  font-weight: 900;
-  color: transparent;
-  background: linear-gradient(120deg, #ff6bb1, #ffa8c9);
-  background-clip: text;
-  -webkit-background-clip: text;
-  letter-spacing: 2px;
-}
 .logo {
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
 }
 
-/* Element Menu 去除自带底色和边框 */
-.glass-menu {
-  background: transparent !important;
-  border-bottom: none !important;
-}
-.glass-menu .el-menu-item {
-  background: transparent !important;
-  font-weight: bold;
-  color: #555;
-}
-.glass-menu .el-menu-item:hover, .glass-menu .el-menu-item.is-active {
-  color: #ff6bb1 !important;
-  background: transparent !important;
-}
-.glass-menu .el-menu-item.is-active {
-  border-bottom: 3px solid #ff6bb1 !important;
+.logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: linear-gradient(135deg, var(--theme-pink), var(--theme-violet));
+  box-shadow: 0 7px 16px var(--theme-glow);
+  font-weight: 900;
 }
 
-/* 右侧图标 */
-.nav-tools {
+.mizuki-text {
+  color: var(--text-strong);
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.desktop-nav {
   display: flex;
-  gap: 15px;
-  font-size: 20px;
-  color: #666;
-  cursor: pointer;
-}
-.nav-tools .el-icon:hover { color: #ff6bb1; }
-.nav-login-btn {
-  background: #ff6bb1 !important;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(255, 107, 177, 0.26);
+  align-items: center;
+  gap: 6px;
 }
 
-/* 页面切换的淡入淡出动画 */
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.desktop-nav a {
+  padding: 9px 13px;
+  border-radius: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.desktop-nav a:hover,
+.desktop-nav a.router-link-active {
+  color: var(--theme-pink);
+  background: var(--accent-soft);
+}
+
+.nav-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button,
+.user-button {
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.icon-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+}
+
+.icon-button:hover {
+  color: var(--theme-pink);
+  background: var(--accent-soft);
+}
+
+.user-button {
+  padding: 3px 8px 3px 3px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.user-button:hover {
+  background: var(--accent-soft);
+}
+
+.mobile-menu {
+  display: none;
+}
+
+.nav-login-btn {
+  min-width: 76px;
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+@media (max-width: 820px) {
+  .desktop-nav {
+    display: none;
+  }
+
+  .mobile-menu {
+    display: inline-flex;
+  }
+
+  .user-button span {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-content {
+    width: min(100% - 20px, 1180px);
+    gap: 8px;
+  }
+
+  .mizuki-text {
+    display: none;
+  }
+
+  .nav-tools {
+    gap: 3px;
+  }
+}
 </style>

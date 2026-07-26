@@ -298,7 +298,7 @@ function openLogin() {
 }
 </script>
 
-<style>
+<style scoped>
 .profile-page {
   padding: 90px 20px 40px;
   min-height: 100vh;
@@ -380,7 +380,7 @@ function openLogin() {
 .avatar-tip,
 .dev-code,
 .danger-copy {
-  color: #888;
+  color: var(--text-muted);
   font-size: 13px;
 }
 

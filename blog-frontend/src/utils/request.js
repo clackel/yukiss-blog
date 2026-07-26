@@ -26,6 +26,7 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      window.dispatchEvent(new CustomEvent('yukiss:auth-expired'))
       ElMessage.error('登录状态已失效，请重新登录')
     } else if (message) {
       ElMessage.error(message)

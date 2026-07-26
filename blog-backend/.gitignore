@@ -5,6 +5,11 @@ target/
 # 忽略日志
 *.log
 
+# 忽略本地环境变量文件
+.env
+.env.local
+.env.*.local
+
 # 忽略 Maven 产生的文件
 .mvn/wrapper/maven-wrapper.jar
 pom.xml.tag
