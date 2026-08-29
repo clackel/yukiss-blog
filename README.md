@@ -6,7 +6,7 @@
 
 ```text
 yukiss-blog/
-├─ blog-frontend/              # 前端项目
+├─ web/                        # 前端项目
 │  ├─ src/
 │  │  ├─ assets/               # 图片资源
 │  │  ├─ composables/          # 组合式业务逻辑，如文章、用户、表单
@@ -18,7 +18,7 @@ yukiss-blog/
 │  ├─ vite.config.js           # Vite 开发服务器配置
 │  └─ package.json             # 前端依赖和脚本
 │
-├─ blog-backend/               # 后端项目
+├─ server/                     # 后端项目
 │  ├─ src/main/java/moon/yukiss/
 │  │  ├─ config/               # Web 配置、跨域、拦截器注册、静态资源映射
 │  │  ├─ controller/           # HTTP 接口层
@@ -40,7 +40,7 @@ yukiss-blog/
 ### 后端
 
 ```bash
-cd blog-backend
+cd server
 mvn spring-boot:run
 ```
 
@@ -53,7 +53,7 @@ BLOG_SERVER_PORT=4000
 BLOG_DB_URL=jdbc:mysql://localhost:3306/my_blog_db?serverTimezone=GMT%2B8
 BLOG_DB_USERNAME=root
 BLOG_DB_PASSWORD=your_password
-BLOG_UPLOAD_DIR=./uploads
+BLOG_UPLOAD_DIR=../uploads
 BLOG_JWT_SECRET=change-me
 BLOG_JWT_EXPIRATION_HOURS=12
 ```
@@ -61,7 +61,7 @@ BLOG_JWT_EXPIRATION_HOURS=12
 ### 前端
 
 ```bash
-cd blog-frontend
+cd web
 npm install
 npm run dev
 ```
