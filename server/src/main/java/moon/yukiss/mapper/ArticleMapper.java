@@ -13,85 +13,20 @@ import java.util.List;
 
 @Mapper
 public interface ArticleMapper {
-    String ARTICLE_SELECT = """
-            SELECT a.*, u.nickname AS authorNickname, u.avatar AS authorAvatar,
-                   (SELECT COUNT(*) FROM article_like al WHERE al.article_id = a.id) AS likeCount,
-                   (SELECT COUNT(*) FROM article_comment ac WHERE ac.article_id = a.id) AS commentCount,
-                   EXISTS(
-                       SELECT 1 FROM article_like al2
-                       WHERE al2.article_id = a.id AND al2.user_id = #{currentUserId}
-                   ) AS likedByMe
-            FROM article a
-            LEFT JOIN user u ON a.author_id = u.id
-            """;
-
-    @Select(ARTICLE_SELECT + " ORDER BY a.create_time DESC")
     List<Article> list(@Param("currentUserId") Integer currentUserId);
 
-    @Select(ARTICLE_SELECT + """
-            WHERE a.author_id = #{authorId}
-            ORDER BY a.create_time DESC
-            """)
     List<Article> listByAuthor(
             @Param("authorId") Integer authorId,
             @Param("currentUserId") Integer currentUserId
     );
 
-    @Select(ARTICLE_SELECT + " WHERE a.id = #{id}")
     Article getById(
             @Param("id") Integer id,
             @Param("currentUserId") Integer currentUserId
     );
 
-    @Select("""
-            <script>
-            SELECT COUNT(*)
-            FROM article a
-            LEFT JOIN user u ON a.author_id = u.id
-            <where>
-                <if test="keyword != null and keyword != ''">
-                    (
-                        a.title LIKE CONCAT('%', #{keyword}, '%')
-                        OR a.content LIKE CONCAT('%', #{keyword}, '%')
-                        OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
-                    )
-                </if>
-            </where>
-            </script>
-            """)
     long countPage(@Param("keyword") String keyword);
 
-    @Select("""
-            <script>
-            SELECT a.*, u.nickname AS authorNickname, u.avatar AS authorAvatar,
-                   (SELECT COUNT(*) FROM article_like al WHERE al.article_id = a.id) AS likeCount,
-                   (SELECT COUNT(*) FROM article_comment ac WHERE ac.article_id = a.id) AS commentCount,
-                   EXISTS(
-                       SELECT 1 FROM article_like al2
-                       WHERE al2.article_id = a.id AND al2.user_id = #{currentUserId}
-                   ) AS likedByMe
-            FROM article a
-            LEFT JOIN user u ON a.author_id = u.id
-            <where>
-                <if test="keyword != null and keyword != ''">
-                    (
-                        a.title LIKE CONCAT('%', #{keyword}, '%')
-                        OR a.content LIKE CONCAT('%', #{keyword}, '%')
-                        OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
-                    )
-                </if>
-            </where>
-            <choose>
-                <when test="sort == 'popular'">
-                    ORDER BY likeCount DESC, commentCount DESC, a.create_time DESC
-                </when>
-                <otherwise>
-                    ORDER BY a.create_time DESC
-                </otherwise>
-            </choose>
-            LIMIT #{limit} OFFSET #{offset}
-            </script>
-            """)
     List<Article> page(
             @Param("currentUserId") Integer currentUserId,
             @Param("keyword") String keyword,

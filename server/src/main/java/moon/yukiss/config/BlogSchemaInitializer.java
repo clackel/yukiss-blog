@@ -21,6 +21,11 @@ public class BlogSchemaInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         createBaseTables();
         addColumnIfMissing("article_comment", "parent_id", "INT NULL");
+        addIndexIfMissing(
+                "article_comment",
+                "idx_article_comment_article_time",
+                "(article_id, create_time)"
+        );
         upgradeArticleContentColumn();
     }
 
@@ -93,6 +98,17 @@ public class BlogSchemaInitializer implements ApplicationRunner {
                     KEY idx_comment_like_comment (comment_id)
                 )
                 """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS user_follow (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    follower_id INT NOT NULL,
+                    following_id INT NOT NULL,
+                    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_user_follow_relation (follower_id, following_id),
+                    KEY idx_user_follow_follower (follower_id),
+                    KEY idx_user_follow_following (following_id)
+                )
+                """);
     }
 
     private void upgradeArticleContentColumn() {
@@ -132,6 +148,27 @@ public class BlogSchemaInitializer implements ApplicationRunner {
         );
         if (columnCount != null && columnCount == 0) {
             jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
+        }
+    }
+
+    private void addIndexIfMissing(String tableName, String indexName, String columns) {
+        Integer tableCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+                Integer.class,
+                tableName
+        );
+        if (tableCount == null || tableCount == 0) {
+            return;
+        }
+
+        Integer indexCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?",
+                Integer.class,
+                tableName,
+                indexName
+        );
+        if (indexCount != null && indexCount == 0) {
+            jdbcTemplate.execute("CREATE INDEX " + indexName + " ON " + tableName + " " + columns);
         }
     }
 }

@@ -47,6 +47,7 @@ Authorization: <token>
   "content": "# 标题\n\n正文",
   "createTime": "2026-07-26T16:00:00",
   "updateTime": "2026-07-26T16:10:00",
+  "lastCommentTime": "2026-07-26T17:30:00",
   "authorNickname": "Yukiss",
   "authorAvatar": "/uploads/avatar.png",
   "likeCount": 8,
@@ -134,6 +135,8 @@ Authorization: <token>
 
 `GET /user/me`
 
+响应中的用户对象包含 `followerCount`（粉丝数）和 `followingCount`（关注数）。
+
 ### 修改资料
 
 `PUT /user/profile`
@@ -220,6 +223,40 @@ Authorization: <token>
 }
 ```
 
+## 公开主页与关注接口
+
+### 查看用户主页
+
+`GET /users/{id}`，公开。
+
+返回公开资料，不包含登录名、邮箱等私密字段：
+
+```json
+{
+  "id": 3,
+  "nickname": "朋友",
+  "avatar": "/uploads/avatar.png",
+  "bio": "个人简介",
+  "location": "Shanghai",
+  "website": "https://example.com",
+  "createTime": "2026-07-26T16:00:00",
+  "followerCount": 12,
+  "followingCount": 8,
+  "followedByMe": true,
+  "ownProfile": false
+}
+```
+
+### 关注用户
+
+`POST /users/{id}/follow`
+
+### 取消关注
+
+`DELETE /users/{id}/follow`
+
+两个接口都返回更新后的公开主页数据。不能关注自己；重复关注不会生成重复关系。
+
 ## 文章接口
 
 ### 兼容文章列表
@@ -239,7 +276,7 @@ Authorization: <token>
 | `page` | `1` | 页码，从 1 开始 |
 | `pageSize` | `10` | 每页数量，1–50 |
 | `keyword` | 空 | 搜索标题、正文和作者昵称，最长 80 字 |
-| `sort` | `latest` | `latest` 或 `popular` |
+| `sort` | `published` | `published`、`commented`、`likes` 或 `comments` |
 
 响应 `data`：
 
@@ -253,13 +290,24 @@ Authorization: <token>
 }
 ```
 
-热门排序依次比较点赞数、评论数和发布时间。
+- `published`：按文章发布时间倒序
+- `commented`：按最新评论时间倒序；无评论的文章排在后面
+- `likes`：按点赞数倒序，数量相同时按发布时间倒序
+- `comments`：按评论数倒序，数量相同时按发布时间倒序
+
+旧参数 `latest` 和 `popular` 仍兼容，分别等同于 `published` 和 `likes`。
 
 ### 我的文章
 
 `GET /articles/mine`
 
 返回当前用户发布的 `Article[]`。
+
+### 指定用户的文章
+
+`GET /articles/user/{userId}`，公开。
+
+返回该用户按发布时间倒序排列的 `Article[]`。
 
 ### 文章详情
 

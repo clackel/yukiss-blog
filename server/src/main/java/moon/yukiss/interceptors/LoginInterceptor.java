@@ -79,6 +79,9 @@ public class LoginInterceptor implements HandlerInterceptor {
         if (uri.equals("/articles") || uri.equals("/articles/page") || uri.equals("/comment/list")) {
             return true;
         }
+        if (uri.matches("^/users/\\d+$")) {
+            return true;
+        }
         return uri.startsWith("/articles/") && !uri.equals("/articles/mine");
     }
 

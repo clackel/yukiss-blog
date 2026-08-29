@@ -63,6 +63,7 @@
             </button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="public-profile">我的主页</el-dropdown-item>
                 <el-dropdown-item command="profile">个人资料</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
@@ -119,6 +120,10 @@ const handleNavigation = (path) => {
 }
 
 const handleAccountCommand = (command) => {
+  if (command === 'public-profile') {
+    if (userInfo.value?.id) router.push(`/users/${userInfo.value.id}`)
+    return
+  }
   if (command === 'profile') {
     router.push('/profile')
     return

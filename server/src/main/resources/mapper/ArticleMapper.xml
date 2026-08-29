@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="moon.yukiss.mapper.ArticleMapper">
+    <sql id="articleSelect">
+        SELECT a.*, u.nickname AS authorNickname, u.avatar AS authorAvatar,
+               (SELECT COUNT(*) FROM article_like al WHERE al.article_id = a.id) AS likeCount,
+               (SELECT COUNT(*) FROM article_comment ac WHERE ac.article_id = a.id) AS commentCount,
+               (SELECT MAX(ac2.create_time) FROM article_comment ac2 WHERE ac2.article_id = a.id) AS lastCommentTime,
+               EXISTS(
+                   SELECT 1 FROM article_like al2
+                   WHERE al2.article_id = a.id AND al2.user_id = #{currentUserId}
+               ) AS likedByMe
+        FROM article a
+        LEFT JOIN user u ON a.author_id = u.id
+    </sql>
+
+    <select id="list" resultType="moon.yukiss.entity.Article">
+        <include refid="articleSelect" />
+        ORDER BY a.create_time DESC
+    </select>
+
+    <select id="listByAuthor" resultType="moon.yukiss.entity.Article">
+        <include refid="articleSelect" />
+        WHERE a.author_id = #{authorId}
+        ORDER BY a.create_time DESC
+    </select>
+
+    <select id="getById" resultType="moon.yukiss.entity.Article">
+        <include refid="articleSelect" />
+        WHERE a.id = #{id}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*)
+        FROM article a
+        LEFT JOIN user u ON a.author_id = u.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                a.title LIKE CONCAT('%', #{keyword}, '%')
+                OR a.content LIKE CONCAT('%', #{keyword}, '%')
+                OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="page" resultType="moon.yukiss.entity.Article">
+        <include refid="articleSelect" />
+        <where>
+            <if test="keyword != null and keyword != ''">
+                a.title LIKE CONCAT('%', #{keyword}, '%')
+                OR a.content LIKE CONCAT('%', #{keyword}, '%')
+                OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        <choose>
+            <when test="sort == 'commented'">
+                ORDER BY lastCommentTime DESC, a.create_time DESC
+            </when>
+            <when test="sort == 'likes'">
+                ORDER BY likeCount DESC, a.create_time DESC
+            </when>
+            <when test="sort == 'comments'">
+                ORDER BY commentCount DESC, a.create_time DESC
+            </when>
+            <otherwise>
+                ORDER BY a.create_time DESC
+            </otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>

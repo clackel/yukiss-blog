@@ -7,15 +7,21 @@
     @keydown.enter="$emit('open', article.id)"
   >
     <div class="article-card__head">
-      <div v-if="showAuthor" class="author-line">
+      <button
+        v-if="showAuthor"
+        class="author-line"
+        type="button"
+        @click.stop="$emit('open-author', article.authorId)"
+        @keydown.stop
+      >
         <el-avatar :size="38" :src="mediaUrl(article.authorAvatar)">
           {{ authorInitial }}
         </el-avatar>
         <div>
-          <b>{{ article.authorNickname || '神秘旅人' }}</b>
+          <b>{{ article.authorNickname || '匿名用户' }}</b>
           <span>{{ formatDate(article.createTime) }}</span>
         </div>
-      </div>
+      </button>
       <span v-else class="article-date">{{ formatDate(article.createTime) }}</span>
 
       <div v-if="manageable" class="article-card__manage" @click.stop>
@@ -63,7 +69,7 @@ const props = defineProps({
   },
 })
 
-defineEmits(['open', 'edit', 'delete'])
+defineEmits(['open', 'open-author', 'edit', 'delete'])
 
 const excerpt = computed(() => markdownExcerpt(props.article.content, 190))
 const authorInitial = computed(() => (props.article.authorNickname || '旅').slice(0, 1))
@@ -93,9 +99,19 @@ const authorInitial = computed(() => (props.article.authorNickname || '旅').sli
 }
 
 .author-line {
+  padding: 0;
+  border: 0;
   display: flex;
   align-items: center;
   gap: 11px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.author-line:hover b,
+.author-line:focus-visible b {
+  color: var(--theme-pink);
 }
 
 .author-line div {

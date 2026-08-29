@@ -34,8 +34,8 @@
 
     <template v-else>
     <div class="auth-intro">
-      <span class="section-kicker">{{ isLoginMode ? 'Welcome back' : 'Create account' }}</span>
-      <p>{{ isLoginMode ? '继续阅读、创作和回应朋友的故事。' : '创建一个账号，开始分享你的灵感。' }}</p>
+      <span class="section-kicker">{{ isLoginMode ? '账号登录' : '账号注册' }}</span>
+      <p>{{ isLoginMode ? '登录后可以写文章、评论和关注作者。' : '创建账号后即可发布文章和参与讨论。' }}</p>
     </div>
 
     <el-form @submit.prevent="submit">

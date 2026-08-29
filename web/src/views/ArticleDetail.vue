@@ -14,15 +14,15 @@
     <template v-else-if="article">
       <article class="glass-card article-body">
         <header class="article-header">
-          <div class="article-author">
+          <button class="article-author" type="button" @click="goUserProfile(article.authorId)">
             <el-avatar :size="46" :src="mediaUrl(article.authorAvatar)">
               {{ authorInitial }}
             </el-avatar>
             <div>
-              <b>{{ article.authorNickname || '神秘旅人' }}</b>
+              <b>{{ article.authorNickname || '匿名用户' }}</b>
               <span>发布于 {{ formatDate(article.createTime) }}</span>
             </div>
-          </div>
+          </button>
 
           <div v-if="isOwner" class="owner-actions">
             <el-button plain @click="router.push(`/editor/${article.id}`)">
@@ -56,15 +56,15 @@
       <section class="glass-card comments-panel">
         <div class="comments-head">
           <div>
-            <span class="section-kicker">Conversation</span>
-            <h2>评论与回应</h2>
+            <span class="section-kicker">评论</span>
+            <h2>评论区</h2>
           </div>
           <b>{{ comments.length }}</b>
         </div>
 
         <div v-if="token" class="comment-editor">
           <div v-if="replyingTo" class="replying-banner">
-            正在回复 {{ replyingTo.nickname || '神秘旅人' }}
+            正在回复 {{ replyingTo.nickname || '匿名用户' }}
             <button type="button" @click="cancelReply">取消</button>
           </div>
           <el-input
@@ -102,7 +102,9 @@
               </el-avatar>
               <div class="comment-main">
                 <div class="comment-top">
-                  <b>{{ comment.nickname || '神秘旅人' }}</b>
+                  <button class="comment-name" type="button" @click="goUserProfile(comment.userId)">
+                    {{ comment.nickname || '匿名用户' }}
+                  </button>
                   <span>{{ formatDateTime(comment.createTime) }}</span>
                 </div>
                 <p>{{ comment.content }}</p>
@@ -123,7 +125,9 @@
                 </el-avatar>
                 <div class="comment-main">
                   <div class="comment-top">
-                    <b>{{ reply.nickname || '神秘旅人' }}</b>
+                    <button class="comment-name" type="button" @click="goUserProfile(reply.userId)">
+                      {{ reply.nickname || '匿名用户' }}
+                    </button>
                     <span>{{ formatDateTime(reply.createTime) }}</span>
                   </div>
                   <p>
@@ -178,7 +182,7 @@ const likeLoading = ref(false)
 const errorMessage = ref('')
 
 const articleId = () => Number(route.params.id)
-const authorInitial = computed(() => (article.value?.authorNickname || '旅').slice(0, 1))
+const authorInitial = computed(() => (article.value?.authorNickname || '用').slice(0, 1))
 const isOwner = computed(() => (
   article.value
   && userInfo.value
@@ -298,6 +302,10 @@ const deleteArticle = async () => {
   }
 }
 
+const goUserProfile = (userId) => {
+  if (userId) router.push(`/users/${userId}`)
+}
+
 const commentInitial = (comment) => (comment.nickname || '评').slice(0, 1)
 
 watch(
@@ -335,9 +343,19 @@ watch(
 }
 
 .article-author {
+  padding: 0;
+  border: 0;
   display: flex;
   align-items: center;
   gap: 12px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.article-author:hover b,
+.article-author:focus-visible b {
+  color: var(--theme-pink);
 }
 
 .article-author div {
@@ -483,8 +501,18 @@ watch(
   gap: 12px;
 }
 
-.comment-top b {
+.comment-name {
+  padding: 0;
+  border: 0;
   color: var(--text-strong);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.comment-name:hover,
+.comment-name:focus-visible {
+  color: var(--theme-pink);
 }
 
 .comment-top span {

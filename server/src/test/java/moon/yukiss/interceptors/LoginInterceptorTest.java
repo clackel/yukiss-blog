@@ -53,6 +53,15 @@ class LoginInterceptorTest {
     }
 
     @Test
+    void anonymousVisitorCanReadPublicUserProfile() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/users/12");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        assertTrue(interceptor.preHandle(request, response, new Object()));
+        assertNull(ThreadLocalUtil.get());
+    }
+
+    @Test
     void privateMineEndpointRejectsMissingTokenWithJsonBody() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/articles/mine");
         MockHttpServletResponse response = new MockHttpServletResponse();

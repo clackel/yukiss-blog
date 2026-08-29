@@ -25,4 +25,6 @@ public class User {
     private Date lastLoginTime;
     private Date passwordUpdatedTime;
     private Date deletedTime;
+    private Integer followerCount;
+    private Integer followingCount;
 }

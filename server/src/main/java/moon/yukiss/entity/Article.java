@@ -11,6 +11,7 @@ public class Article {
     private String content;
     private Date createTime;
     private Date updateTime;
+    private Date lastCommentTime;
     private String authorNickname;
     private String authorAvatar;
     private Integer likeCount;

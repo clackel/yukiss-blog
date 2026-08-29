@@ -4,20 +4,29 @@ import moon.yukiss.common.BusinessException;
 import moon.yukiss.dto.RegisterRequest;
 import moon.yukiss.dto.UpdateProfileRequest;
 import moon.yukiss.entity.User;
+import moon.yukiss.mapper.UserFollowMapper;
 import moon.yukiss.mapper.UserMapper;
 import moon.yukiss.service.EmailCodeService;
 import moon.yukiss.service.UserService;
 import moon.yukiss.utils.PasswordHasher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
+    private final UserFollowMapper userFollowMapper;
     private final PasswordHasher passwordHasher;
     private final EmailCodeService emailCodeService;
 
-    public UserServiceImpl(UserMapper userMapper, PasswordHasher passwordHasher, EmailCodeService emailCodeService) {
+    public UserServiceImpl(
+            UserMapper userMapper,
+            UserFollowMapper userFollowMapper,
+            PasswordHasher passwordHasher,
+            EmailCodeService emailCodeService
+    ) {
         this.userMapper = userMapper;
+        this.userFollowMapper = userFollowMapper;
         this.passwordHasher = passwordHasher;
         this.emailCodeService = emailCodeService;
     }
@@ -69,7 +78,7 @@ public class UserServiceImpl implements UserService {
             user.setEmailVerified(false);
         }
         userMapper.insert(user);
-        return userMapper.findByUsername(username);
+        return getById(user.getId());
     }
 
     @Override
@@ -155,11 +164,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void deleteAccount(Integer id, String password) {
         User user = userMapper.findById(id);
         if (user == null || !passwordHasher.matches(password, user.getPassword())) {
             throw new BusinessException("密码确认失败，无法注销账号");
         }
+        userFollowMapper.deleteAllByUserId(id);
         userMapper.deleteById(id);
     }
 

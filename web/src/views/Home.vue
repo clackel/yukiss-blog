@@ -6,7 +6,7 @@
           {{ userInitial }}
         </el-avatar>
         <div>
-          <span class="section-kicker">My writing space</span>
+          <span class="section-kicker">个人工作台</span>
           <h1>{{ greeting }}，{{ userInfo?.nickname || userInfo?.username }}</h1>
           <p>这里收纳你写下的每一篇文章，也记录朋友们留下的回应。</p>
         </div>
@@ -20,7 +20,7 @@
     <section class="dashboard-grid">
       <aside class="dashboard-aside">
         <div class="glass-card stats-card">
-          <span class="section-kicker">Overview</span>
+          <span class="section-kicker">数据概览</span>
           <h2>创作概览</h2>
           <div class="stats-grid">
             <div>
@@ -39,7 +39,7 @@
         </div>
 
         <div class="glass-card prompt-card">
-          <span class="section-kicker">Tiny prompt</span>
+          <span class="section-kicker">写作建议</span>
           <h3>下一篇可以写</h3>
           <p>{{ writingPrompt }}</p>
         </div>
@@ -48,7 +48,7 @@
       <section class="article-column">
         <div class="feed-toolbar glass-card">
           <div>
-            <span class="section-kicker">Your archive</span>
+            <span class="section-kicker">文章管理</span>
             <h2 class="section-title">我的文章</h2>
             <p class="section-desc">编辑、整理，或者回到某篇文章继续对话。</p>
           </div>

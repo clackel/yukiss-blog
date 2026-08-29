@@ -10,6 +10,8 @@ import moon.yukiss.utils.ThreadLocalUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 
 import java.util.List;
@@ -41,11 +43,11 @@ class ArticleServiceImplTest {
     }
 
     @Test
-    void pageNormalizesSearchAndPopularSort() {
+    void pageNormalizesSearchAndLegacyPopularSort() {
         ThreadLocalUtil.set(Map.of("id", 7));
         Article article = article(11, 3);
         when(articleMapper.countPage("Spring")).thenReturn(12L);
-        when(articleMapper.page(7, "Spring", "popular", 10, 10)).thenReturn(List.of(article));
+        when(articleMapper.page(7, "Spring", "likes", 10, 10)).thenReturn(List.of(article));
 
         PageResult<Article> result = articleService.page(2, 10, "  Spring  ", "POPULAR");
 
@@ -64,6 +66,18 @@ class ArticleServiceImplTest {
 
         assertEquals(400, exception.getStatus().value());
         verify(articleMapper, never()).countPage(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"published", "commented", "likes", "comments"})
+    void pageAcceptsEachSupportedSort(String sort) {
+        when(articleMapper.countPage(null)).thenReturn(1L);
+        when(articleMapper.page(null, null, sort, 0, 10)).thenReturn(List.of(article(11, 3)));
+
+        PageResult<Article> result = articleService.page(1, 10, null, sort);
+
+        assertEquals(1, result.getTotal());
+        verify(articleMapper).page(null, null, sort, 0, 10);
     }
 
     @Test

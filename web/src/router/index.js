@@ -4,6 +4,7 @@ export const routes = [
   { path: '/', name: 'landing', component: () => import('../views/Landing.vue'), meta: { public: true } },
   { path: '/community', name: 'community', component: () => import('../views/Community.vue'), meta: { public: true } },
   { path: '/articles/:id', name: 'article-detail', component: () => import('../views/ArticleDetail.vue'), meta: { public: true } },
+  { path: '/users/:id', name: 'user-profile', component: () => import('../views/UserProfile.vue'), meta: { public: true } },
   { path: '/home', name: 'home', component: () => import('../views/Home.vue'), meta: { requiresAuth: true } },
   { path: '/editor', name: 'article-create', component: () => import('../views/ArticleEditor.vue'), meta: { requiresAuth: true } },
   { path: '/editor/:id', name: 'article-edit', component: () => import('../views/ArticleEditor.vue'), meta: { requiresAuth: true } },
