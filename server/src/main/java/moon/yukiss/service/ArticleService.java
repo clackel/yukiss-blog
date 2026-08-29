@@ -13,6 +13,8 @@ public interface ArticleService {
 
     List<Article> listMine();
 
+    List<Article> listByAuthor(Integer authorId);
+
     Article getById(Integer id);
 
     Article add(ArticleRequest request);

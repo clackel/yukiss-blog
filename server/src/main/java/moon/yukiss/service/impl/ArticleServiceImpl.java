@@ -19,7 +19,7 @@ public class ArticleServiceImpl implements ArticleService {
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE = 50;
     private static final int MAX_KEYWORD_LENGTH = 80;
-    private static final Set<String> ALLOWED_SORTS = Set.of("latest", "popular");
+    private static final Set<String> ALLOWED_SORTS = Set.of("published", "commented", "likes", "comments");
 
     private final ArticleMapper articleMapper;
 
@@ -63,6 +63,14 @@ public class ArticleServiceImpl implements ArticleService {
     public List<Article> listMine() {
         Integer userId = requireCurrentUserId();
         return articleMapper.listByAuthor(userId, userId);
+    }
+
+    @Override
+    public List<Article> listByAuthor(Integer authorId) {
+        if (authorId == null || authorId < 1) {
+            throw BusinessException.notFound("用户不存在");
+        }
+        return articleMapper.listByAuthor(authorId, currentUserIdOrNull());
     }
 
     @Override
@@ -139,9 +147,14 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     private String normalizeSort(String sort) {
-        String normalized = sort == null || sort.isBlank() ? "latest" : sort.trim().toLowerCase();
+        String normalized = sort == null || sort.isBlank() ? "published" : sort.trim().toLowerCase();
+        if ("latest".equals(normalized)) {
+            normalized = "published";
+        } else if ("popular".equals(normalized)) {
+            normalized = "likes";
+        }
         if (!ALLOWED_SORTS.contains(normalized)) {
-            throw new BusinessException("排序方式仅支持 latest 或 popular");
+            throw new BusinessException("排序方式仅支持 published、commented、likes 或 comments");
         }
         return normalized;
     }

@@ -3,9 +3,9 @@
     <section class="landing-hero" :style="{ backgroundImage: `url(${coverImg})` }">
       <div class="landing-mask">
         <div class="landing-copy">
-          <span class="section-kicker">Yukiss Blog · Friends only, stories welcome</span>
-          <h1>记录灵感，<br>也遇见同频的人</h1>
-          <p>一个给朋友们写长文、分享生活与交换想法的小小社区。无需登录也能阅读，想回应时再加入我们。</p>
+          <span class="section-kicker">Yukiss Blog</span>
+          <h1>写作、阅读，<br>分享你的观点</h1>
+          <p>一个用于发布长文和交流想法的博客社区。无需登录即可阅读，登录后可以写文章、点赞和评论。</p>
           <div class="landing-actions">
             <el-button type="primary" round size="large" class="anime-btn" @click="router.push('/community')">
               浏览社区
@@ -15,15 +15,15 @@
               写一篇
             </el-button>
             <el-button v-else round size="large" class="hero-ghost" @click="openAuth('register')">
-              加入 Yukiss
+              注册账号
             </el-button>
           </div>
         </div>
 
         <div class="landing-orbit" aria-hidden="true">
           <div class="orbit-card orbit-card--one">
-            <span>今天的灵感</span>
-            <b>值得被好好记录</b>
+            <span>开始写作</span>
+            <b>记录值得保留的内容</b>
           </div>
           <div class="orbit-card orbit-card--two">
             <span>Markdown</span>
@@ -54,9 +54,9 @@
     <section class="latest-section">
       <div class="latest-heading">
         <div>
-          <span class="section-kicker">Latest stories</span>
-          <h2 class="section-title">最近写下的故事</h2>
-          <p class="section-desc">先读几篇，再决定要不要留下来。</p>
+          <span class="section-kicker">最新文章</span>
+          <h2 class="section-title">最近发布</h2>
+          <p class="section-desc">查看社区最近更新的文章。</p>
         </div>
         <el-button text class="more-link" @click="router.push('/community')">
           查看全部 <el-icon><ArrowRight /></el-icon>
@@ -71,7 +71,7 @@
         <el-button type="primary" plain @click="loadLatest">重新加载</el-button>
       </el-empty>
 
-      <el-empty v-else-if="!latestArticles.length" class="glass-card empty-state" description="还没有文章，第一篇故事正在等待被写下">
+      <el-empty v-else-if="!latestArticles.length" class="glass-card empty-state" description="还没有文章">
         <el-button v-if="token" type="primary" class="anime-btn" @click="router.push('/editor')">写第一篇</el-button>
         <el-button v-else type="primary" class="anime-btn" @click="openAuth('register', '/editor')">注册并开始写作</el-button>
       </el-empty>
@@ -82,13 +82,14 @@
           :key="article.id"
           :article="article"
           @open="openArticle"
+          @open-author="openAuthor"
         />
       </div>
     </section>
 
     <footer class="landing-footer">
       <b>Yukiss</b>
-      <span>把朋友们的故事留在一处。</span>
+      <span>记录与分享。</span>
     </footer>
   </main>
 </template>
@@ -113,7 +114,7 @@ const loadLatest = async () => {
   errorMessage.value = ''
   try {
     const data = apiData(await request.get('/articles/page', {
-      params: { page: 1, pageSize: 3, sort: 'latest' },
+      params: { page: 1, pageSize: 3, sort: 'published' },
     }))
     latestArticles.value = data?.items || []
   } catch {
@@ -125,6 +126,10 @@ const loadLatest = async () => {
 
 const openArticle = (id) => {
   router.push(`/articles/${id}`)
+}
+
+const openAuthor = (id) => {
+  if (id) router.push(`/users/${id}`)
 }
 
 onMounted(loadLatest)

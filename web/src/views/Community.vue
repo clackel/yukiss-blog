@@ -2,9 +2,9 @@
   <main class="page-shell community-page">
     <section class="community-hero" :style="{ backgroundImage: `url(${cardBgImg})` }">
       <div class="community-hero__mask">
-        <span class="section-kicker">Public feed</span>
-        <h1>从朋友的文字里，<br>发现另一种日常</h1>
-        <p>按时间阅读新故事，或看看最近最受欢迎的灵感。</p>
+        <span class="section-kicker">文章发现</span>
+        <h1>发现值得阅读的文章</h1>
+        <p>搜索标题、正文或作者，并按你关心的维度排序。</p>
       </div>
     </section>
 
@@ -28,13 +28,20 @@
 
         <div class="feed-toolbar glass-card">
           <div>
-            <span class="section-kicker">Discovery</span>
-            <h2 class="section-title">{{ keyword ? `“${keyword}” 的结果` : '全部故事' }}</h2>
+            <span class="section-kicker">搜索结果</span>
+            <h2 class="section-title">{{ keyword ? `“${keyword}” 的结果` : '全部文章' }}</h2>
             <p class="section-desc">共 {{ pageData.total }} 篇，当前第 {{ pageData.page }} 页。</p>
           </div>
           <div class="sort-switch" role="group" aria-label="文章排序">
-            <button :class="{ active: sort === 'latest' }" type="button" @click="changeSort('latest')">最新</button>
-            <button :class="{ active: sort === 'popular' }" type="button" @click="changeSort('popular')">热门</button>
+            <button
+              v-for="option in sortOptions"
+              :key="option.value"
+              :class="{ active: sort === option.value }"
+              type="button"
+              @click="changeSort(option.value)"
+            >
+              {{ option.label }}
+            </button>
           </div>
         </div>
 
@@ -42,7 +49,7 @@
           <el-skeleton v-for="index in 4" :key="index" animated :rows="5" class="glass-card loading-card" />
         </div>
 
-        <el-empty v-else-if="errorMessage" class="glass-card empty-state" description="频道暂时连接失败">
+        <el-empty v-else-if="errorMessage" class="glass-card empty-state" description="文章列表暂时无法加载">
           <el-button type="primary" plain @click="loadPage">重新加载</el-button>
         </el-empty>
 
@@ -62,6 +69,7 @@
             :key="article.id"
             :article="article"
             @open="openArticle"
+            @open-author="openAuthor"
           />
         </div>
 
@@ -77,27 +85,78 @@
       </div>
 
       <aside class="community-aside">
-        <div class="glass-card aside-card">
-          <span class="section-kicker">Channel pulse</span>
-          <h3>频道状态</h3>
-          <div class="stats">
+        <div
+          v-if="token"
+          class="glass-card aside-card profile-summary"
+          role="link"
+          tabindex="0"
+          @click="openMyPublicProfile"
+          @keydown.enter="openMyPublicProfile"
+        >
+          <div class="profile-summary__head">
+            <el-avatar :size="52" :src="mediaUrl(userInfo?.avatar)">
+              {{ userInitial }}
+            </el-avatar>
             <div>
-              <b>{{ pageData.total }}</b>
-              <span>公开文章</span>
+              <h3>{{ userInfo?.nickname || userInfo?.username || '我的主页' }}</h3>
+              <span>查看个人主页</span>
+            </div>
+          </div>
+          <p>{{ userInfo?.bio || '还没有填写个人简介。' }}</p>
+          <div class="follow-stats">
+            <div>
+              <b>{{ userInfo?.followerCount ?? 0 }}</b>
+              <span>粉丝</span>
             </div>
             <div>
-              <b>{{ sort === 'latest' ? '新' : '热' }}</b>
-              <span>当前排序</span>
+              <b>{{ userInfo?.followingCount ?? 0 }}</b>
+              <span>关注</span>
             </div>
           </div>
         </div>
 
+        <div v-else class="glass-card aside-card profile-summary profile-summary--guest">
+          <span class="section-kicker">个人主页</span>
+          <h3>登录后查看个人资料</h3>
+          <p>登录后可以关注作者，并在这里快速进入你的主页。</p>
+          <el-button type="primary" plain @click="openAuth('login', route.fullPath)">登录</el-button>
+        </div>
+
+        <div class="glass-card aside-card calendar-card">
+          <div class="calendar-head">
+            <button type="button" aria-label="上个月" @click="changeCalendarMonth(-1)">‹</button>
+            <h3>{{ calendarTitle }}</h3>
+            <button type="button" aria-label="下个月" @click="changeCalendarMonth(1)">›</button>
+          </div>
+          <div class="calendar-grid calendar-weekdays" aria-hidden="true">
+            <span v-for="weekday in weekDays" :key="weekday">{{ weekday }}</span>
+          </div>
+          <div class="calendar-grid">
+            <span
+              v-for="day in calendarDays"
+              :key="day.key"
+              :class="{ blank: !day.value, today: day.isToday }"
+            >
+              {{ day.value }}
+            </span>
+          </div>
+        </div>
+
         <div class="glass-card aside-card">
-          <span class="section-kicker">Writing prompt</span>
-          <h3>今天写什么？</h3>
-          <p>一件刚学会的小事、一段想保存的心情，或者一个还没想完整的念头。</p>
-          <el-button v-if="token" text class="write-link" @click="router.push('/editor')">写下它 →</el-button>
-          <el-button v-else text class="write-link" @click="openAuth('login', '/editor')">登录后写作 →</el-button>
+          <span class="section-kicker">文章概览</span>
+          <h3>当前列表</h3>
+          <div class="stats">
+            <div>
+              <b>{{ pageData.total }}</b>
+              <span>文章</span>
+            </div>
+            <div>
+              <b>{{ currentSortLabel }}</b>
+              <span>排序方式</span>
+            </div>
+          </div>
+          <el-button v-if="token" text class="write-link" @click="router.push('/editor')">写文章 →</el-button>
+          <el-button v-else text class="write-link" @click="openAuth('login', '/editor')">登录后写文章 →</el-button>
         </div>
       </aside>
     </section>
@@ -105,22 +164,24 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import ArticleCard from '../components/ArticleCard.vue'
 import { useUser } from '../composables/useUser'
 import { buildArticleQuery, normalizeArticleQuery } from '../utils/articleQuery'
+import { mediaUrl } from '../utils/media'
 import request, { apiData } from '../utils/request'
 import cardBgImg from '../assets/card-bg.jpg'
 
 const route = useRoute()
 const router = useRouter()
-const { token, openAuth } = useUser()
+const { token, userInfo, openAuth } = useUser()
 const searchInput = ref(null)
 const draftKeyword = ref('')
 const keyword = ref('')
-const sort = ref('latest')
+const sort = ref('published')
+const calendarDate = ref(new Date())
 const isLoading = ref(false)
 const errorMessage = ref('')
 const pageData = reactive({
@@ -129,6 +190,43 @@ const pageData = reactive({
   page: 1,
   pageSize: 10,
   totalPages: 0,
+})
+
+const sortOptions = [
+  { value: 'published', label: '发布时间' },
+  { value: 'commented', label: '评论时间' },
+  { value: 'likes', label: '点赞数' },
+  { value: 'comments', label: '评论数' },
+]
+const currentSortLabel = computed(() => (
+  sortOptions.find(option => option.value === sort.value)?.label || '发布时间'
+))
+const userInitial = computed(() => (
+  userInfo.value?.nickname || userInfo.value?.username || '我'
+).slice(0, 1))
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+const calendarTitle = computed(() => (
+  `${calendarDate.value.getFullYear()} 年 ${calendarDate.value.getMonth() + 1} 月`
+))
+const calendarDays = computed(() => {
+  const year = calendarDate.value.getFullYear()
+  const month = calendarDate.value.getMonth()
+  const firstWeekday = new Date(year, month, 1).getDay()
+  const dayCount = new Date(year, month + 1, 0).getDate()
+  const now = new Date()
+  const days = Array.from({ length: firstWeekday }, (_, index) => ({
+    key: `blank-${index}`,
+    value: '',
+    isToday: false,
+  }))
+  for (let day = 1; day <= dayCount; day += 1) {
+    days.push({
+      key: `${year}-${month}-${day}`,
+      value: day,
+      isToday: year === now.getFullYear() && month === now.getMonth() && day === now.getDate(),
+    })
+  }
+  return days
 })
 
 const syncFromRoute = () => {
@@ -197,6 +295,22 @@ const changePage = (value) => {
 
 const openArticle = (id) => {
   router.push(`/articles/${id}`)
+}
+
+const openAuthor = (id) => {
+  if (id) router.push(`/users/${id}`)
+}
+
+const openMyPublicProfile = () => {
+  if (userInfo.value?.id) router.push(`/users/${userInfo.value.id}`)
+}
+
+const changeCalendarMonth = (offset) => {
+  calendarDate.value = new Date(
+    calendarDate.value.getFullYear(),
+    calendarDate.value.getMonth() + offset,
+    1
+  )
 }
 
 watch(
@@ -279,11 +393,12 @@ onMounted(async () => {
   padding: 4px;
   border-radius: 13px;
   display: flex;
+  flex-wrap: wrap;
   background: var(--surface-soft);
 }
 
 .sort-switch button {
-  min-width: 64px;
+  min-width: 76px;
   padding: 9px 14px;
   border: 0;
   border-radius: 10px;
@@ -334,6 +449,142 @@ onMounted(async () => {
   line-height: 1.75;
 }
 
+.profile-summary[role='link'] {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-summary[role='link']:hover,
+.profile-summary[role='link']:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--theme-shadow-hover) !important;
+  outline: none;
+}
+
+.profile-summary__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-summary__head h3 {
+  margin: 0 0 4px;
+}
+
+.profile-summary__head span {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.profile-summary > p {
+  margin: 16px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.profile-summary--guest h3 {
+  margin-bottom: 10px;
+}
+
+.follow-stats {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.follow-stats div {
+  text-align: center;
+}
+
+.follow-stats div + div {
+  border-left: 1px solid var(--border-soft);
+}
+
+.follow-stats b,
+.follow-stats span {
+  display: block;
+}
+
+.follow-stats b {
+  color: var(--text-strong);
+  font-size: 18px;
+}
+
+.follow-stats span {
+  margin-top: 3px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.calendar-card {
+  padding: 18px;
+}
+
+.calendar-head {
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 5px;
+}
+
+.calendar-head h3 {
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+}
+
+.calendar-head button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 22px;
+}
+
+.calendar-head button:hover {
+  color: var(--theme-pink);
+  background: var(--accent-soft);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.calendar-grid span {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.calendar-weekdays span {
+  aspect-ratio: auto;
+  margin-bottom: 3px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.calendar-grid span.today {
+  color: white;
+  background: var(--theme-pink);
+  font-weight: 800;
+}
+
+.calendar-grid span.blank {
+  visibility: hidden;
+}
+
 .stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -355,6 +606,11 @@ onMounted(async () => {
 .stats b {
   color: var(--theme-pink);
   font-size: 24px;
+}
+
+.stats div:nth-child(2) b {
+  font-size: 14px;
+  line-height: 34px;
 }
 
 .stats span {

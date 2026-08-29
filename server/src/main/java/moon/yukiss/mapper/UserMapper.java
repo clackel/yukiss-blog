@@ -3,6 +3,7 @@ package moon.yukiss.mapper;
 import moon.yukiss.entity.User;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -12,14 +13,14 @@ public interface UserMapper {
     @Select("SELECT * FROM user WHERE username = #{username} AND is_deleted = 0")
     User findByUsername(String username);
 
-    @Select("SELECT * FROM user WHERE id = #{id} AND is_deleted = 0")
-    User findById(Integer id);
+    User findById(@Param("id") Integer id);
 
     @Select("SELECT * FROM user WHERE email = #{email} AND is_deleted = 0")
     User findByEmail(String email);
 
     @Insert("INSERT INTO user (username, password, nickname, email, email_verified, role, create_time, password_updated_time) " +
             "VALUES (#{username}, #{password}, #{nickname}, #{email}, #{emailVerified}, 'USER', NOW(), NOW())")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
     void insert(User user);
 
     @Update("UPDATE user SET avatar = #{avatarUrl} WHERE id = #{id} AND is_deleted = 0")

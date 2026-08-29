@@ -52,6 +52,17 @@
           <el-tag :type="userInfo.emailVerified ? 'success' : 'warning'" round>
             {{ userInfo.emailVerified ? '邮箱已绑定' : '邮箱未绑定' }}
           </el-tag>
+          <div class="profile-follow-stats" @click="router.push(`/users/${userInfo.id}`)">
+            <div>
+              <b>{{ userInfo.followerCount ?? 0 }}</b>
+              <span>粉丝</span>
+            </div>
+            <div>
+              <b>{{ userInfo.followingCount ?? 0 }}</b>
+              <span>关注</span>
+            </div>
+          </div>
+          <el-button text type="primary" @click="router.push(`/users/${userInfo.id}`)">查看我的主页</el-button>
         </section>
 
         <section class="panel-section">
@@ -382,6 +393,39 @@ function openLogin() {
 .danger-copy {
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.profile-follow-stats {
+  width: 100%;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  cursor: pointer;
+}
+
+.profile-follow-stats div {
+  text-align: center;
+}
+
+.profile-follow-stats div + div {
+  border-left: 1px solid var(--border-soft);
+}
+
+.profile-follow-stats b,
+.profile-follow-stats span {
+  display: block;
+}
+
+.profile-follow-stats b {
+  color: var(--text-strong);
+  font-size: 19px;
+}
+
+.profile-follow-stats span {
+  color: var(--text-faint);
+  font-size: 12px;
 }
 
 .panel-section {

@@ -37,7 +37,7 @@ public class ArticleController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "latest") String sort
+            @RequestParam(defaultValue = "published") String sort
     ) {
         return ApiResponse.ok(articleService.page(page, pageSize, keyword, sort));
     }
@@ -45,6 +45,11 @@ public class ArticleController {
     @GetMapping("/mine")
     public ApiResponse<List<Article>> mine() {
         return ApiResponse.ok(articleService.listMine());
+    }
+
+    @GetMapping("/user/{authorId}")
+    public ApiResponse<List<Article>> listByAuthor(@PathVariable Integer authorId) {
+        return ApiResponse.ok(articleService.listByAuthor(authorId));
     }
 
     @GetMapping("/{id}")

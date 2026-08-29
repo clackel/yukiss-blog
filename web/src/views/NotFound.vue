@@ -1,9 +1,9 @@
 <template>
   <main class="page-shell not-found">
     <div class="glass-card not-found__card">
-      <span class="section-kicker">404 · Lost signal</span>
-      <h1>这颗星球上没有页面</h1>
-      <p>链接可能已经失效，也可能只是走进了一条还没被记录的支线。</p>
+      <span class="section-kicker">404</span>
+      <h1>页面不存在</h1>
+      <p>链接可能已失效，或者页面地址有误。</p>
       <el-button type="primary" round class="anime-btn" @click="router.push('/community')">
         返回社区
       </el-button>

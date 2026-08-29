@@ -1,5 +1,12 @@
-# Vue 3 + Vite
+# Yukiss Blog 前端
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Vue 3 + Vite 前端。项目说明见根目录 [README](../README.md)，架构与约定见 [开发指南](../docs/DEVELOPMENT.md)。
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+```bash
+npm install
+npm run dev     # http://127.0.0.1:3000
+npm test
+npm run build   # 输出到 dist/
+```
+
+后端地址通过 `VITE_API_BASE_URL` 配置（见 `.env.example`），默认 `http://localhost:4000`。
