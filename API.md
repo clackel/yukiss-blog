@@ -1,6 +1,6 @@
 # Yukiss Blog API
 
-本文档对应当前 `blog-backend` 实现。
+本文档对应当前 `server` 实现。
 
 ## 基本约定
 

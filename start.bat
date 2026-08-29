@@ -2,8 +2,8 @@
 setlocal
 
 set "PROJECT_ROOT=%~dp0"
-set "BACKEND_DIR=%PROJECT_ROOT%blog-backend"
-set "FRONTEND_DIR=%PROJECT_ROOT%blog-frontend"
+set "BACKEND_DIR=%PROJECT_ROOT%server"
+set "FRONTEND_DIR=%PROJECT_ROOT%web"
 if not defined BLOG_DB_PASSWORD (
     echo [WARN] BLOG_DB_PASSWORD is not set; the backend will use its configured default.
 )
