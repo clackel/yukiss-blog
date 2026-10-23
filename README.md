@@ -26,7 +26,9 @@ yukiss-blog/
 ├── web/           Vue 3 前端（端口 3000）
 ├── docs/          项目文档
 │   ├── API.md         接口文档
-│   └── DEVELOPMENT.md 开发指南（配置、架构、约定、测试）
+│   ├── DEVELOPMENT.md 开发指南（配置、架构、约定、测试）
+│   └── DEPLOYMENT.md  部署指南（服务器初始化、一键部署、运维）
+├── deploy/        Nginx / systemd 配置与部署脚本
 ├── uploads/       上传文件目录（运行时生成，已忽略）
 └── start.bat      Windows 一键启动脚本
 ```
@@ -90,3 +92,4 @@ npm run lint
 
 - [接口文档](docs/API.md)：请求约定、数据结构与全部接口
 - [开发指南](docs/DEVELOPMENT.md)：配置项、架构说明、编码约定与构建发布
+- [部署指南](docs/DEPLOYMENT.md)：服务器初始化、`bash deploy/deploy.sh` 一键部署、日志、回滚与备份

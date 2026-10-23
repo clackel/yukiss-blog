@@ -37,6 +37,8 @@ npm run build
 
 Vitest is configured inside `vite.config.js` (jsdom, globals). Tests live next to the source as `*.test.js`. The backend has no linter. CI (`.github/workflows/ci.yml`) runs `mvn -B test` against a MySQL service, plus frontend lint, format check, tests and build — keep `npm run lint` and `npm run format:check` clean.
 
+Deployment (see `docs/DEPLOYMENT.md`): `bash deploy/deploy.sh` builds both projects and installs them on the server reachable as SSH alias `yukiss-blog` (Tencent Cloud Lighthouse, Ubuntu 24.04). Nginx serves `web/dist` and proxies `/api/` → `127.0.0.1:4000` (prefix stripped), so production builds use `VITE_API_BASE_URL=/api` from `web/.env.production`. The backend runs as systemd unit `yukiss-blog` with secrets in `/etc/yukiss-blog/blog.env` on the server — never copy them into the repo. Files under `deploy/` must keep LF line endings (`.gitattributes`).
+
 ## Configuration
 
 All backend settings in `server/src/main/resources/application.yml` are overridable by `BLOG_*` variables, read from real env vars or from `server/.env` (imported via `spring.config.import: optional:file:.env[.properties]`, resolved relative to the working directory, so start the backend from `server/`; real env vars win). See `server/.env.example`: DB URL/credentials (MySQL `my_blog_db`, auto-created), JWT secret/expiry, CORS origins, upload dir (defaults to `<repo>/uploads`, served at `/uploads/**`), and `BLOG_EMAIL_DEV_RETURN_CODE` — when true, email verification codes are returned in the API response instead of being sent. Frontend reads `VITE_API_BASE_URL` (default `http://localhost:4000`).

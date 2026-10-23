@@ -21,6 +21,7 @@
 | `BLOG_JWT_EXPIRATION_HOURS` | `12` | JWT 有效期（小时） |
 | `BLOG_CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | 允许跨域的前端地址，逗号分隔 |
 | `BLOG_EMAIL_DEV_RETURN_CODE` | `true` | 为 `true` 时邮箱验证码直接在接口响应中返回（项目未接入真实邮件发送） |
+| `BLOG_LOG_LEVEL` | `debug` | `moon.yukiss` 包的日志级别，生产环境为 `info` |
 
 前端只有一个变量：`VITE_API_BASE_URL`，默认 `http://localhost:4000`。
 
@@ -151,12 +152,12 @@ npm run format                               # Prettier 格式化（format:check
 
 ```bash
 cd web
-npm run build      # 产物输出到 web/dist
+npm run build      # 产物输出到 web/dist，后端地址取自 .env.production（/api）
 ```
 
-后端 `server/src/main/resources/static/` 中保存了一份已构建的前端产物，使后端可以直接托管页面。该目录**不会**随构建自动更新，如需更新，请将 `web/dist` 的内容手动复制过去。
+生产环境由 Nginx 托管 `web/dist`，并把 `/api/` 反向代理到后端，详见 [DEPLOYMENT.md](DEPLOYMENT.md)。部署只需在本机执行 `bash deploy/deploy.sh`。
 
-注意：后端目前没有 SPA 路由回退，直接访问或刷新 `/community` 等前端路由会被登录拦截器处理，而不是返回 `index.html`。生产部署建议由 Nginx 等反向代理托管 `web/dist` 并配置 `try_files` 回退。
+`server/src/main/resources/static/` 中是一份旧的前端构建产物，不会随构建更新，生产环境也不使用它。
 
 后端：
 

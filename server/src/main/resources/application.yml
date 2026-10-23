@@ -35,4 +35,4 @@ app:
 
 logging:
   level:
-    moon.yukiss: debug
+    moon.yukiss: ${BLOG_LOG_LEVEL:debug}

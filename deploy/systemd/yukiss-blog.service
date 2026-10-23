@@ -1,0 +1,29 @@
+# Yukiss Blog 后端（Spring Boot）
+# 由 deploy/remote-install.sh 安装到 /etc/systemd/system/yukiss-blog.service
+[Unit]
+Description=Yukiss Blog backend (Spring Boot)
+After=network-online.target mysql.service
+Wants=network-online.target
+Requires=mysql.service
+
+[Service]
+Type=simple
+User=yukiss
+Group=yukiss
+WorkingDirectory=/opt/yukiss-blog
+# 数据库密码、JWT 密钥等生产配置，由 deploy/setup-server.sh 生成
+EnvironmentFile=/etc/yukiss-blog/blog.env
+ExecStart=/usr/bin/java -Xms256m -Xmx1g -Dfile.encoding=UTF-8 -jar /opt/yukiss-blog/app.jar
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+# 基本加固：除上传目录外，文件系统只读
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/yukiss-blog
+
+[Install]
+WantedBy=multi-user.target
