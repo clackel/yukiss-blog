@@ -4,7 +4,7 @@
       <div class="landing-mask">
         <div class="landing-copy">
           <span class="section-kicker">Yukiss Blog</span>
-          <h1>写作、阅读，<br>分享你的观点</h1>
+          <h1>写作、阅读，<br />分享你的观点</h1>
           <p>一个用于发布长文和交流想法的博客社区。无需登录即可阅读，登录后可以写文章、点赞和评论。</p>
           <div class="landing-actions">
             <el-button type="primary" round size="large" class="anime-btn" @click="router.push('/community')">
@@ -14,9 +14,7 @@
             <el-button v-if="token" round size="large" class="hero-ghost" @click="router.push('/editor')">
               写一篇
             </el-button>
-            <el-button v-else round size="large" class="hero-ghost" @click="openAuth('register')">
-              注册账号
-            </el-button>
+            <el-button v-else round size="large" class="hero-ghost" @click="openAuth('register')"> 注册账号 </el-button>
           </div>
         </div>
 
@@ -73,7 +71,9 @@
 
       <el-empty v-else-if="!latestArticles.length" class="glass-card empty-state" description="还没有文章">
         <el-button v-if="token" type="primary" class="anime-btn" @click="router.push('/editor')">写第一篇</el-button>
-        <el-button v-else type="primary" class="anime-btn" @click="openAuth('register', '/editor')">注册并开始写作</el-button>
+        <el-button v-else type="primary" class="anime-btn" @click="openAuth('register', '/editor')"
+          >注册并开始写作</el-button
+        >
       </el-empty>
 
       <div v-else class="latest-grid">
@@ -113,9 +113,11 @@ const loadLatest = async () => {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const data = apiData(await request.get('/articles/page', {
-      params: { page: 1, pageSize: 3, sort: 'published' },
-    }))
+    const data = apiData(
+      await request.get('/articles/page', {
+        params: { page: 1, pageSize: 3, sort: 'published' },
+      })
+    )
     latestArticles.value = data?.items || []
   } catch {
     errorMessage.value = '文章加载失败'

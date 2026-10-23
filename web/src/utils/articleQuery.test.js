@@ -5,6 +5,7 @@ describe('Article query helpers', () => {
   it('normalizes invalid route values to safe defaults', () => {
     expect(normalizeArticleQuery({ q: '  Vue  ', sort: 'oldest', page: '-2' })).toEqual({
       keyword: 'Vue',
+      tag: '',
       sort: 'published',
       page: 1,
     })
@@ -17,6 +18,13 @@ describe('Article query helpers', () => {
       sort: 'comments',
       page: '3',
     })
+  })
+
+  it('round-trips the tag filter', () => {
+    const query = buildArticleQuery({ keyword: '', tag: ' 前端 ', sort: 'published', page: 1 })
+
+    expect(query).toEqual({ tag: '前端' })
+    expect(normalizeArticleQuery(query).tag).toBe('前端')
   })
 
   it('keeps old shared links working', () => {

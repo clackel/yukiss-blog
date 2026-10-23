@@ -30,6 +30,12 @@ function saveSession(rawToken, user) {
   localStorage.setItem('user', JSON.stringify(displayUser))
 }
 
+// 修改密码后后端会签发新 token，旧 token 随即失效
+function saveToken(rawToken) {
+  token.value = rawToken
+  localStorage.setItem('token', rawToken)
+}
+
 function saveUser(user) {
   const displayUser = normalizeUserMedia(user)
   userInfo.value = displayUser
@@ -72,10 +78,12 @@ export function useUser() {
   const doLogin = async () => {
     authLoading.value = true
     try {
-      const data = apiData(await request.post('/user/login', {
-        username: authForm.value.username,
-        password: authForm.value.password,
-      }))
+      const data = apiData(
+        await request.post('/user/login', {
+          username: authForm.value.username,
+          password: authForm.value.password,
+        })
+      )
       saveSession(data.token, data.user)
       ElMessage.success('登录成功')
       showAuthDialog.value = false
@@ -118,6 +126,7 @@ export function useUser() {
     authForm,
     authLoading,
     authRedirect,
+    saveToken,
     saveUser,
     clearSession,
     openAuth,

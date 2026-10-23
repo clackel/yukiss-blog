@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify'
 import MarkdownIt from 'markdown-it'
+import { mediaUrl } from './media'
 
 const markdown = new MarkdownIt({
   html: false,
@@ -13,21 +14,22 @@ markdown.renderer.rules.link_open = (tokens, index, options, env, self) => {
   const token = tokens[index]
   token.attrSet('target', '_blank')
   token.attrSet('rel', 'noopener noreferrer')
-  return defaultLinkOpen
-    ? defaultLinkOpen(tokens, index, options, env, self)
-    : self.renderToken(tokens, index, options)
+  return defaultLinkOpen ? defaultLinkOpen(tokens, index, options, env, self) : self.renderToken(tokens, index, options)
 }
+
+// 只渲染外部 http(s) 图片和本站上传的图片（/uploads/...，补全为后端地址）
+const UPLOAD_PATH = /^\/uploads\/[\w.-]+$/
 
 const defaultImage = markdown.renderer.rules.image
 markdown.renderer.rules.image = (tokens, index, options, env, self) => {
   const src = tokens[index].attrGet('src') || ''
-  if (!/^https?:\/\//i.test(src)) {
+  if (UPLOAD_PATH.test(src)) {
+    tokens[index].attrSet('src', mediaUrl(src))
+  } else if (!/^https?:\/\//i.test(src)) {
     return ''
   }
   tokens[index].attrSet('loading', 'lazy')
-  return defaultImage
-    ? defaultImage(tokens, index, options, env, self)
-    : self.renderToken(tokens, index, options)
+  return defaultImage ? defaultImage(tokens, index, options, env, self) : self.renderToken(tokens, index, options)
 }
 
 export function renderMarkdown(source) {
@@ -42,7 +44,7 @@ export function markdownExcerpt(source, maxLength = 180) {
   const plain = (source || '')
     .replace(/!\[[^\]]*]\([^)]*\)/g, '')
     .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
-    .replace(/[`#>*_~\-]+/g, ' ')
+    .replace(/[`#>*_~-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
   if (plain.length <= maxLength) return plain

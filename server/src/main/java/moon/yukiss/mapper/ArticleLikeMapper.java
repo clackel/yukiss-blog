@@ -12,14 +12,11 @@ public interface ArticleLikeMapper {
     @Select("SELECT COUNT(*) FROM article_like WHERE user_id = #{userId} AND article_id = #{articleId}")
     int checkIsLiked(@Param("userId") Integer userId, @Param("articleId") Integer articleId);
 
-    // 点赞
-    @Insert("INSERT INTO article_like(user_id, article_id, create_time) VALUES(#{userId}, #{articleId}, NOW())")
-    void addLike(@Param("userId") Integer userId, @Param("articleId") Integer articleId);
+    // 点赞；INSERT IGNORE 使并发重复点赞返回 0 而不是触发唯一键异常
+    @Insert("INSERT IGNORE INTO article_like(user_id, article_id, create_time) VALUES(#{userId}, #{articleId}, NOW())")
+    int addLike(@Param("userId") Integer userId, @Param("articleId") Integer articleId);
 
     // 取消点赞
     @Delete("DELETE FROM article_like WHERE user_id = #{userId} AND article_id = #{articleId}")
-    void deleteLike(@Param("userId") Integer userId, @Param("articleId") Integer articleId);
-
-    @Select("SELECT COUNT(*) FROM article_like WHERE article_id = #{articleId}")
-    int countLikes(@Param("articleId") Integer articleId);
+    int deleteLike(@Param("userId") Integer userId, @Param("articleId") Integer articleId);
 }

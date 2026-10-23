@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import moon.yukiss.common.ApiResponse;
 import moon.yukiss.common.PageResult;
 import moon.yukiss.dto.ArticleRequest;
+import moon.yukiss.dto.TagCount;
 import moon.yukiss.entity.Article;
 import moon.yukiss.service.ArticleService;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,9 +38,15 @@ public class ArticleController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "published") String sort
+            @RequestParam(defaultValue = "published") String sort,
+            @RequestParam(required = false) String tag
     ) {
-        return ApiResponse.ok(articleService.page(page, pageSize, keyword, sort));
+        return ApiResponse.ok(articleService.page(page, pageSize, keyword, sort, tag));
+    }
+
+    @GetMapping("/tags")
+    public ApiResponse<List<TagCount>> popularTags() {
+        return ApiResponse.ok(articleService.listPopularTags());
     }
 
     @GetMapping("/mine")

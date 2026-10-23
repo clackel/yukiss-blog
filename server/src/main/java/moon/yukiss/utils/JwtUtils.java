@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 @Component
@@ -21,10 +22,16 @@ public class JwtUtils {
         this.expirationHours = expirationHours;
     }
 
+    public static final String ISSUED_AT_CLAIM = "issuedAt";
+
     public String genToken(Map<String, Object> claims) {
+        long now = System.currentTimeMillis();
+        // 签发时间（秒）用于与 password_updated_time 比较，改密码后旧 token 即失效
+        Map<String, Object> payload = new HashMap<>(claims);
+        payload.put(ISSUED_AT_CLAIM, now / 1000);
         return JWT.create()
-                .withClaim("claims", claims)
-                .withExpiresAt(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * expirationHours))
+                .withClaim("claims", payload)
+                .withExpiresAt(new Date(now + 1000 * 60 * 60 * expirationHours))
                 .sign(Algorithm.HMAC256(secret));
     }
 

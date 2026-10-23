@@ -4,6 +4,7 @@ import moon.yukiss.common.BusinessException;
 import moon.yukiss.dto.RegisterRequest;
 import moon.yukiss.dto.UpdateProfileRequest;
 import moon.yukiss.entity.User;
+import moon.yukiss.mapper.NotificationMapper;
 import moon.yukiss.mapper.UserFollowMapper;
 import moon.yukiss.mapper.UserMapper;
 import moon.yukiss.service.EmailCodeService;
@@ -16,17 +17,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final UserFollowMapper userFollowMapper;
+    private final NotificationMapper notificationMapper;
     private final PasswordHasher passwordHasher;
     private final EmailCodeService emailCodeService;
 
     public UserServiceImpl(
             UserMapper userMapper,
             UserFollowMapper userFollowMapper,
+            NotificationMapper notificationMapper,
             PasswordHasher passwordHasher,
             EmailCodeService emailCodeService
     ) {
         this.userMapper = userMapper;
         this.userFollowMapper = userFollowMapper;
+        this.notificationMapper = notificationMapper;
         this.passwordHasher = passwordHasher;
         this.emailCodeService = emailCodeService;
     }
@@ -171,6 +175,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("密码确认失败，无法注销账号");
         }
         userFollowMapper.deleteAllByUserId(id);
+        notificationMapper.deleteByRecipient(id);
         userMapper.deleteById(id);
     }
 

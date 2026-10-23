@@ -5,9 +5,10 @@
 ## 功能
 
 - 账号：注册、登录（JWT）、修改资料与密码、上传头像、绑定邮箱、通过邮箱找回用户名、注销账号
-- 文章：Markdown 编辑与渲染（XSS 过滤）、发布 / 编辑 / 删除、分页搜索、我的文章
-- 互动：评论与一级回复、文章点赞、评论点赞
-- 社交：公开用户主页、关注 / 取消关注
+- 文章：Markdown 编辑与渲染（XSS 过滤）、插入图片、草稿、标签、发布 / 编辑 / 删除、全文搜索、按标签筛选
+- 互动：评论与一级回复（分页、编辑、删除）、文章点赞、评论点赞
+- 社交：公开用户主页、关注 / 取消关注、站内通知（评论、回复、点赞、关注）
+- 安全：改密码 / 注销后旧登录态立即失效、登录失败锁定、验证码防暴力破解、按文件内容校验上传图片
 
 ## 技术栈
 
@@ -41,13 +42,13 @@ yukiss-blog/
 
 ### 配置
 
-后端通过 `BLOG_*` 环境变量覆盖默认配置，完整列表见 [server/.env.example](server/.env.example)。本地开发至少需要设置数据库密码：
+后端配置通过 `BLOG_*` 变量覆盖。复制 `server/.env.example` 为 `server/.env`，至少填写数据库密码 `BLOG_DB_PASSWORD`：
 
-```powershell
-$env:BLOG_DB_PASSWORD = "your_password"
+```bash
+cp server/.env.example server/.env
 ```
 
-> Spring Boot 不会自动读取 `.env` 文件，`server/.env.example` 仅作为变量清单参考，请将变量设置到系统或终端环境中。
+后端启动时会自动读取 `server/.env`（需在 `server/` 目录下启动）。同名的系统环境变量优先级更高。`.env` 已被 git 忽略，不要提交。
 
 前端如需修改后端地址，复制 `web/.env.example` 为 `web/.env` 并修改 `VITE_API_BASE_URL`（默认 `http://localhost:4000`）。
 
@@ -80,7 +81,10 @@ mvn test
 ```bash
 cd web
 npm test
+npm run lint
 ```
+
+推送到 GitHub 后，GitHub Actions 会自动运行前后端测试、代码检查和前端构建。
 
 ## 文档
 

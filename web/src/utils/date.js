@@ -12,9 +12,7 @@ export function formatDate(dateStr) {
 
 export function formatDateTime(dateStr) {
   if (!dateStr) return '未知时间'
-  const normalized = typeof dateStr === 'string' && !dateStr.includes('T')
-    ? dateStr.replace(' ', 'T')
-    : dateStr
+  const normalized = typeof dateStr === 'string' && !dateStr.includes('T') ? dateStr.replace(' ', 'T') : dateStr
   const date = new Date(normalized)
   if (Number.isNaN(date.getTime())) return '未知时间'
   return date.toLocaleString('zh-CN', {

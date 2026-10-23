@@ -24,8 +24,8 @@
           <h2>创作概览</h2>
           <div class="stats-grid">
             <div>
-              <b>{{ articles.length }}</b>
-              <span>文章</span>
+              <b>{{ publishedArticles.length }}</b>
+              <span>已发布</span>
             </div>
             <div>
               <b>{{ totalLikes }}</b>
@@ -50,7 +50,11 @@
           <div>
             <span class="section-kicker">文章管理</span>
             <h2 class="section-title">我的文章</h2>
-            <p class="section-desc">编辑、整理，或者回到某篇文章继续对话。</p>
+            <p class="section-desc">
+              编辑、整理，或者回到某篇文章继续对话。<template v-if="draftCount"
+                >草稿 {{ draftCount }} 篇，排在最前面。</template
+              >
+            </p>
           </div>
           <el-button plain round :loading="isLoading" @click="loadArticles">
             <el-icon><Refresh /></el-icon>
@@ -80,6 +84,7 @@
             @open="openArticle"
             @edit="editArticle"
             @delete="deleteArticle"
+            @select-tag="openTag"
           />
         </div>
       </section>
@@ -110,9 +115,7 @@ const prompts = [
   '分享一部最近喜欢的作品，以及它打动你的地方。',
 ]
 
-const userInitial = computed(() => (
-  userInfo.value?.nickname || userInfo.value?.username || '我'
-).slice(0, 1))
+const userInitial = computed(() => (userInfo.value?.nickname || userInfo.value?.username || '我').slice(0, 1))
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
@@ -122,8 +125,12 @@ const greeting = computed(() => {
 })
 
 const writingPrompt = prompts[new Date().getDate() % prompts.length]
-const totalLikes = computed(() => articles.value.reduce((sum, article) => sum + (article.likeCount || 0), 0))
-const totalComments = computed(() => articles.value.reduce((sum, article) => sum + (article.commentCount || 0), 0))
+const publishedArticles = computed(() => articles.value.filter((article) => article.status !== 'draft'))
+const draftCount = computed(() => articles.value.length - publishedArticles.value.length)
+const totalLikes = computed(() => publishedArticles.value.reduce((sum, article) => sum + (article.likeCount || 0), 0))
+const totalComments = computed(() =>
+  publishedArticles.value.reduce((sum, article) => sum + (article.commentCount || 0), 0)
+)
 
 const loadArticles = async () => {
   isLoading.value = true
@@ -139,20 +146,17 @@ const loadArticles = async () => {
 
 const openArticle = (id) => router.push(`/articles/${id}`)
 const editArticle = (id) => router.push(`/editor/${id}`)
+const openTag = (tag) => router.push({ path: '/community', query: { tag } })
 
 const deleteArticle = async (article) => {
   try {
-    await ElMessageBox.confirm(
-      `确认删除《${article.title}》吗？文章下的评论和点赞也会一并删除。`,
-      '删除文章',
-      {
-        type: 'warning',
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
-      }
-    )
+    await ElMessageBox.confirm(`确认删除《${article.title}》吗？文章下的评论和点赞也会一并删除。`, '删除文章', {
+      type: 'warning',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+    })
     await request.delete(`/articles/${article.id}`)
-    articles.value = articles.value.filter(item => item.id !== article.id)
+    articles.value = articles.value.filter((item) => item.id !== article.id)
     ElMessage.success('文章已删除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return

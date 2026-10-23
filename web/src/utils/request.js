@@ -9,19 +9,19 @@ const request = axios.create({
 })
 
 request.interceptors.request.use(
-  config => {
+  (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = token
     }
     return config
   },
-  error => Promise.reject(error)
+  (error) => Promise.reject(error)
 )
 
 request.interceptors.response.use(
-  response => response,
-  error => {
+  (response) => response,
+  (error) => {
     const message = error.response?.data?.message || error.response?.data || '服务连接失败，请稍后再试'
     if (error.response?.status === 401) {
       localStorage.removeItem('token')

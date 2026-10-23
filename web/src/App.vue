@@ -19,6 +19,18 @@
             <el-icon><Search /></el-icon>
           </button>
 
+          <el-badge v-if="token" :value="unreadCount" :max="99" :hidden="!unreadCount" class="notify-badge">
+            <button
+              class="icon-button"
+              type="button"
+              :title="unreadCount ? `${unreadCount} 条未读通知` : '通知'"
+              :aria-label="unreadCount ? `${unreadCount} 条未读通知` : '通知'"
+              @click="router.push('/notifications')"
+            >
+              <el-icon><Bell /></el-icon>
+            </button>
+          </el-badge>
+
           <el-dropdown trigger="click" @command="setTheme">
             <button
               class="icon-button"
@@ -64,6 +76,9 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="public-profile">我的主页</el-dropdown-item>
+                <el-dropdown-item command="notifications">
+                  通知<template v-if="unreadCount">（{{ unreadCount }}）</template>
+                </el-dropdown-item>
                 <el-dropdown-item command="profile">个人资料</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
@@ -87,10 +102,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
-import { Menu, Moon, Search, Sunny } from '@element-plus/icons-vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { Bell, Menu, Moon, Search, Sunny } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import AuthDialog from './components/AuthDialog.vue'
+import { useNotifications } from './composables/useNotifications'
 import { useTheme } from './composables/useTheme'
 import { useUser } from './composables/useUser'
 import { mediaUrl } from './utils/media'
@@ -99,17 +115,21 @@ const route = useRoute()
 const router = useRouter()
 const { token, userInfo, openAuth, doLogout, refreshMe } = useUser()
 const { themeMode, effectiveTheme, setTheme } = useTheme()
+const { unreadCount, startPolling, stopPolling } = useNotifications()
 
 const userInitial = computed(() => {
   const label = userInfo.value?.nickname || userInfo.value?.username || '友'
   return label.slice(0, 1)
 })
 
-const themeLabel = computed(() => ({
-  system: '跟随系统',
-  light: '浅色模式',
-  dark: '深色模式',
-})[themeMode.value])
+const themeLabel = computed(
+  () =>
+    ({
+      system: '跟随系统',
+      light: '浅色模式',
+      dark: '深色模式',
+    })[themeMode.value]
+)
 
 const goSearch = () => {
   router.push({ path: '/community', query: { focus: 'search' } })
@@ -124,8 +144,8 @@ const handleAccountCommand = (command) => {
     if (userInfo.value?.id) router.push(`/users/${userInfo.value.id}`)
     return
   }
-  if (command === 'profile') {
-    router.push('/profile')
+  if (command === 'profile' || command === 'notifications') {
+    router.push(`/${command}`)
     return
   }
   if (command === 'logout') {
@@ -149,6 +169,18 @@ watch(token, (value) => {
     router.replace('/')
   }
 })
+
+// 登录状态下轮询未读通知数，退出登录后停止
+watch(
+  token,
+  (value) => {
+    if (value) startPolling()
+    else stopPolling()
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(stopPolling)
 
 onMounted(async () => {
   if (!token.value) return
@@ -258,6 +290,16 @@ onMounted(async () => {
   background: var(--accent-soft);
 }
 
+.notify-badge {
+  display: inline-flex;
+}
+
+.notify-badge :deep(.el-badge__content) {
+  top: 6px;
+  right: 10px;
+  pointer-events: none;
+}
+
 .user-button {
   padding: 3px 8px 3px 3px;
   border-radius: 18px;
@@ -281,7 +323,9 @@ onMounted(async () => {
 
 .page-fade-enter-active,
 .page-fade-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 
 .page-fade-enter-from,

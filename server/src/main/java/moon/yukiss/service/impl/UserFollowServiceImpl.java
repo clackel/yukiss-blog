@@ -2,20 +2,23 @@ package moon.yukiss.service.impl;
 
 import moon.yukiss.common.BusinessException;
 import moon.yukiss.dto.PublicUserProfile;
+import moon.yukiss.entity.Notification;
 import moon.yukiss.mapper.UserFollowMapper;
+import moon.yukiss.service.NotificationService;
 import moon.yukiss.service.UserFollowService;
-import moon.yukiss.utils.ThreadLocalUtil;
+import moon.yukiss.utils.CurrentUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
 
 @Service
 public class UserFollowServiceImpl implements UserFollowService {
     private final UserFollowMapper userFollowMapper;
+    private final NotificationService notificationService;
 
-    public UserFollowServiceImpl(UserFollowMapper userFollowMapper) {
+    public UserFollowServiceImpl(UserFollowMapper userFollowMapper, NotificationService notificationService) {
         this.userFollowMapper = userFollowMapper;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -23,7 +26,7 @@ public class UserFollowServiceImpl implements UserFollowService {
         if (userId == null || userId < 1) {
             throw BusinessException.notFound("用户不存在");
         }
-        Integer currentUserId = currentUserIdOrNull();
+        Integer currentUserId = CurrentUser.idOrNull();
         PublicUserProfile profile = userFollowMapper.findPublicProfile(userId, currentUserId);
         if (profile == null) {
             throw BusinessException.notFound("用户不存在或已注销");
@@ -35,41 +38,28 @@ public class UserFollowServiceImpl implements UserFollowService {
     @Override
     @Transactional
     public PublicUserProfile follow(Integer userId) {
-        Integer currentUserId = requireCurrentUserId();
+        Integer currentUserId = CurrentUser.requireId();
         if (currentUserId.equals(userId)) {
             throw new BusinessException("不能关注自己");
         }
         getPublicProfile(userId);
-        userFollowMapper.addFollow(currentUserId, userId);
+        if (userFollowMapper.addFollow(currentUserId, userId) > 0) {
+            notificationService.notify(userId, currentUserId, Notification.TYPE_FOLLOW, null, null);
+        }
         return getPublicProfile(userId);
     }
 
     @Override
     @Transactional
     public PublicUserProfile unfollow(Integer userId) {
-        Integer currentUserId = requireCurrentUserId();
+        Integer currentUserId = CurrentUser.requireId();
         if (currentUserId.equals(userId)) {
             throw new BusinessException("不能取消关注自己");
         }
         getPublicProfile(userId);
-        userFollowMapper.deleteFollow(currentUserId, userId);
+        if (userFollowMapper.deleteFollow(currentUserId, userId) > 0) {
+            notificationService.retract(userId, currentUserId, Notification.TYPE_FOLLOW, null, null);
+        }
         return getPublicProfile(userId);
-    }
-
-    private Integer currentUserIdOrNull() {
-        Map<String, Object> claims = ThreadLocalUtil.get();
-        if (claims == null) {
-            return null;
-        }
-        Object id = claims.get("id");
-        return id instanceof Number ? ((Number) id).intValue() : null;
-    }
-
-    private Integer requireCurrentUserId() {
-        Integer userId = currentUserIdOrNull();
-        if (userId == null) {
-            throw BusinessException.unauthorized("请先登录");
-        }
-        return userId;
     }
 }

@@ -15,7 +15,9 @@
       <el-form @submit.prevent="recoverAccount">
         <el-form-item>
           <el-input v-model="recoveryForm.email" maxlength="120" placeholder="绑定邮箱">
-            <template #prefix><el-icon><Message /></el-icon></template>
+            <template #prefix
+              ><el-icon><Message /></el-icon
+            ></template>
           </el-input>
         </el-form-item>
         <el-form-item>
@@ -25,75 +27,67 @@
           </div>
           <div v-if="recoveryDevCode" class="dev-code">本地验证码：{{ recoveryDevCode }}</div>
         </el-form-item>
-        <el-button native-type="submit" type="primary" class="anime-btn auth-submit">
-          找回用户名
-        </el-button>
+        <el-button native-type="submit" type="primary" class="anime-btn auth-submit"> 找回用户名 </el-button>
       </el-form>
       <button class="mode-link" type="button" @click="recoveryMode = false">返回登录</button>
     </template>
 
     <template v-else>
-    <div class="auth-intro">
-      <span class="section-kicker">{{ isLoginMode ? '账号登录' : '账号注册' }}</span>
-      <p>{{ isLoginMode ? '登录后可以写文章、评论和关注作者。' : '创建账号后即可发布文章和参与讨论。' }}</p>
-    </div>
+      <div class="auth-intro">
+        <span class="section-kicker">{{ isLoginMode ? '账号登录' : '账号注册' }}</span>
+        <p>{{ isLoginMode ? '登录后可以写文章、评论和关注作者。' : '创建账号后即可发布文章和参与讨论。' }}</p>
+      </div>
 
-    <el-form @submit.prevent="submit">
-      <el-form-item>
-        <el-input
-          v-model="authForm.username"
-          autocomplete="username"
-          maxlength="20"
-          placeholder="用户名"
-          @keyup.enter="submit"
-        >
-          <template #prefix><el-icon><User /></el-icon></template>
-        </el-input>
-      </el-form-item>
-
-      <el-form-item>
-        <el-input
-          v-model="authForm.password"
-          type="password"
-          :autocomplete="isLoginMode ? 'current-password' : 'new-password'"
-          maxlength="72"
-          placeholder="密码"
-          show-password
-          @keyup.enter="submit"
-        >
-          <template #prefix><el-icon><Lock /></el-icon></template>
-        </el-input>
-      </el-form-item>
-
-      <template v-if="!isLoginMode">
+      <el-form @submit.prevent="submit">
         <el-form-item>
-          <el-input v-model="authForm.nickname" maxlength="30" placeholder="昵称（选填）">
-            <template #prefix><el-icon><EditPen /></el-icon></template>
+          <el-input v-model="authForm.username" autocomplete="username" maxlength="20" placeholder="用户名">
+            <template #prefix
+              ><el-icon><User /></el-icon
+            ></template>
           </el-input>
         </el-form-item>
+
         <el-form-item>
-          <el-input v-model="authForm.email" maxlength="120" placeholder="邮箱（用于找回账号）">
-            <template #prefix><el-icon><Message /></el-icon></template>
+          <el-input
+            v-model="authForm.password"
+            type="password"
+            :autocomplete="isLoginMode ? 'current-password' : 'new-password'"
+            maxlength="72"
+            placeholder="密码"
+            show-password
+          >
+            <template #prefix
+              ><el-icon><Lock /></el-icon
+            ></template>
           </el-input>
         </el-form-item>
-      </template>
 
-      <el-button
-        native-type="submit"
-        type="primary"
-        class="anime-btn auth-submit"
-        :loading="authLoading"
-      >
-        {{ isLoginMode ? '登录' : '立即注册' }}
-      </el-button>
-    </el-form>
+        <template v-if="!isLoginMode">
+          <el-form-item>
+            <el-input v-model="authForm.nickname" maxlength="30" placeholder="昵称（选填）">
+              <template #prefix
+                ><el-icon><EditPen /></el-icon
+              ></template>
+            </el-input>
+          </el-form-item>
+          <el-form-item>
+            <el-input v-model="authForm.email" maxlength="120" placeholder="邮箱（用于找回账号）">
+              <template #prefix
+                ><el-icon><Message /></el-icon
+              ></template>
+            </el-input>
+          </el-form-item>
+        </template>
 
-    <button class="mode-link" type="button" @click="toggleMode">
-      {{ isLoginMode ? '还没有账号？现在注册' : '已有账号？返回登录' }}
-    </button>
-    <button v-if="isLoginMode" class="recovery-link" type="button" @click="recoveryMode = true">
-      忘记用户名？
-    </button>
+        <el-button native-type="submit" type="primary" class="anime-btn auth-submit" :loading="authLoading">
+          {{ isLoginMode ? '登录' : '立即注册' }}
+        </el-button>
+      </el-form>
+
+      <button class="mode-link" type="button" @click="toggleMode">
+        {{ isLoginMode ? '还没有账号？现在注册' : '已有账号？返回登录' }}
+      </button>
+      <button v-if="isLoginMode" class="recovery-link" type="button" @click="recoveryMode = true">忘记用户名？</button>
     </template>
   </el-dialog>
 </template>
@@ -107,16 +101,8 @@ import { useUser } from '../composables/useUser'
 import request, { apiData } from '../utils/request'
 
 const router = useRouter()
-const {
-  showAuthDialog,
-  isLoginMode,
-  authForm,
-  authLoading,
-  authRedirect,
-  consumeAuthRedirect,
-  doLogin,
-  doRegister,
-} = useUser()
+const { showAuthDialog, isLoginMode, authForm, authLoading, authRedirect, consumeAuthRedirect, doLogin, doRegister } =
+  useUser()
 const recoveryMode = ref(false)
 const recoveryLoading = ref(false)
 const recoveryDevCode = ref('')
@@ -127,7 +113,10 @@ const dialogTitle = computed(() => {
   return isLoginMode.value ? '欢迎回到 Yukiss' : '加入 Yukiss'
 })
 
+// 回车由表单原生提交触发（表单内有 native-type="submit" 按钮），不要再给输入框绑定 keyup.enter，
+// 否则一次回车会发两次登录请求，登录失败次数也会被算两次
 const submit = async () => {
+  if (authLoading.value) return
   try {
     if (isLoginMode.value) {
       await doLogin()

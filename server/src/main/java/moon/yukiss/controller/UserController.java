@@ -1,5 +1,6 @@
 package moon.yukiss.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import moon.yukiss.common.ApiResponse;
 import moon.yukiss.dto.BindEmailRequest;
@@ -10,7 +11,9 @@ import moon.yukiss.dto.RecoverAccountRequest;
 import moon.yukiss.dto.RegisterRequest;
 import moon.yukiss.dto.SendEmailCodeRequest;
 import moon.yukiss.dto.UpdateProfileRequest;
+import moon.yukiss.common.BusinessException;
 import moon.yukiss.entity.User;
+import moon.yukiss.service.LoginAttemptService;
 import moon.yukiss.service.UserService;
 import moon.yukiss.utils.JwtUtils;
 import moon.yukiss.utils.ThreadLocalUtil;
@@ -30,21 +33,32 @@ import java.util.Map;
 public class UserController {
     private final UserService userService;
     private final JwtUtils jwtUtils;
+    private final LoginAttemptService loginAttemptService;
 
-    public UserController(UserService userService, JwtUtils jwtUtils) {
+    public UserController(UserService userService, JwtUtils jwtUtils, LoginAttemptService loginAttemptService) {
         this.userService = userService;
         this.jwtUtils = jwtUtils;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @PostMapping("/login")
-    public ApiResponse<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
-        User user = userService.login(request.getUsername(), request.getPassword());
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("id", user.getId());
-        claims.put("username", user.getUsername());
+    public ApiResponse<Map<String, Object>> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String clientIp = httpRequest.getRemoteAddr();
+        loginAttemptService.checkAllowed(request.getUsername(), clientIp);
+        User user;
+        try {
+            user = userService.login(request.getUsername(), request.getPassword());
+        } catch (BusinessException ex) {
+            loginAttemptService.recordFailure(request.getUsername(), clientIp);
+            throw ex;
+        }
+        loginAttemptService.recordSuccess(request.getUsername(), clientIp);
 
         Map<String, Object> result = new HashMap<>();
-        result.put("token", jwtUtils.genToken(claims));
+        result.put("token", issueToken(user));
         result.put("user", user);
         return ApiResponse.ok(result);
     }
@@ -64,10 +78,14 @@ public class UserController {
         return ApiResponse.ok(userService.updateProfile(currentUserId(), request));
     }
 
+    /**
+     * 修改密码会使此前签发的所有 token 失效，这里返回新 token 让当前设备保持登录。
+     */
     @PostMapping("/change-password")
-    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-        userService.changePassword(currentUserId(), request.getOldPassword(), request.getNewPassword());
-        return ApiResponse.ok("密码已更新，请妥善保管新密码");
+    public ApiResponse<Map<String, Object>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        Integer userId = currentUserId();
+        userService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
+        return ApiResponse.ok("密码已更新，其他设备需要重新登录", Map.of("token", issueToken(userService.getById(userId))));
     }
 
     @PostMapping("/email/code")
@@ -102,6 +120,13 @@ public class UserController {
     public ApiResponse<Void> deleteAccount(@Valid @RequestBody DeleteAccountRequest request) {
         userService.deleteAccount(currentUserId(), request.getPassword());
         return ApiResponse.ok("账号已注销，登录状态已失效");
+    }
+
+    private String issueToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("id", user.getId());
+        claims.put("username", user.getUsername());
+        return jwtUtils.genToken(claims);
     }
 
     private Integer currentUserId() {

@@ -29,4 +29,8 @@ public class BusinessException extends RuntimeException {
     public static BusinessException notFound(String message) {
         return new BusinessException(HttpStatus.NOT_FOUND, message);
     }
+
+    public static BusinessException tooManyRequests(String message) {
+        return new BusinessException(HttpStatus.TOO_MANY_REQUESTS, message);
+    }
 }

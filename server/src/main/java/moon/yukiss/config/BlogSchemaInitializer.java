@@ -4,8 +4,11 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+
+import java.sql.Statement;
 
 @Component
 @Order(0)
@@ -27,6 +30,56 @@ public class BlogSchemaInitializer implements ApplicationRunner {
                 "(article_id, create_time)"
         );
         upgradeArticleContentColumn();
+
+        // 以下为后续版本新增的字段与索引，新库和旧库都通过“缺失才添加”补齐
+        addColumnIfMissing("article", "status", "VARCHAR(20) NOT NULL DEFAULT 'published'");
+        addIndexIfMissing("article", "idx_article_status_created", "(status, create_time)");
+        boolean countsAdded = addColumnIfMissing("article", "like_count", "INT NOT NULL DEFAULT 0");
+        countsAdded |= addColumnIfMissing("article", "comment_count", "INT NOT NULL DEFAULT 0");
+        countsAdded |= addColumnIfMissing("article", "last_comment_time", "DATETIME NULL");
+        if (countsAdded) {
+            backfillArticleCounts();
+        }
+        addColumnIfMissing("article_comment", "update_time", "DATETIME NULL");
+        addFulltextIndexIfMissing();
+    }
+
+    /** 计数字段首次添加时，根据现有点赞和评论回填。之后由业务代码在同一事务内维护。 */
+    private void backfillArticleCounts() {
+        jdbcTemplate.execute("""
+                UPDATE article a
+                SET like_count = (SELECT COUNT(*) FROM article_like al WHERE al.article_id = a.id),
+                    comment_count = (SELECT COUNT(*) FROM article_comment ac WHERE ac.article_id = a.id),
+                    last_comment_time = (SELECT MAX(ac.create_time) FROM article_comment ac WHERE ac.article_id = a.id)
+                """);
+    }
+
+    /**
+     * 标题与正文的全文索引，使用 ngram 分词以支持中文。
+     * ngram 会丢弃“包含”停用词的词元（默认停用词表里有 a、i 等单字母），
+     * 因此建索引时在同一连接上临时关闭停用词，否则大部分英文无法被检索。
+     */
+    private void addFulltextIndexIfMissing() {
+        Integer indexCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'article' AND INDEX_NAME = 'ft_article_title_content'",
+                Integer.class
+        );
+        if (indexCount != null && indexCount > 0) {
+            return;
+        }
+        jdbcTemplate.execute((ConnectionCallback<Void>) connection -> {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("SET SESSION innodb_ft_enable_stopword = OFF");
+                try {
+                    statement.execute(
+                            "ALTER TABLE article ADD FULLTEXT INDEX ft_article_title_content (title, content) WITH PARSER ngram"
+                    );
+                } finally {
+                    statement.execute("SET SESSION innodb_ft_enable_stopword = ON");
+                }
+            }
+            return null;
+        });
     }
 
     private void createBaseTables() {
@@ -99,6 +152,31 @@ public class BlogSchemaInitializer implements ApplicationRunner {
                 )
                 """);
         jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS article_tag (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    article_id INT NOT NULL,
+                    name VARCHAR(20) NOT NULL,
+                    UNIQUE KEY uk_article_tag_article_name (article_id, name),
+                    KEY idx_article_tag_name (name)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS notification (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    user_id INT NOT NULL,
+                    actor_id INT NOT NULL,
+                    type VARCHAR(30) NOT NULL,
+                    article_id INT NULL,
+                    comment_id INT NULL,
+                    is_read TINYINT(1) NOT NULL DEFAULT 0,
+                    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    KEY idx_notification_user_time (user_id, create_time),
+                    KEY idx_notification_user_read (user_id, is_read),
+                    KEY idx_notification_article (article_id),
+                    KEY idx_notification_comment (comment_id)
+                )
+                """);
+        jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS user_follow (
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     follower_id INT NOT NULL,
@@ -130,14 +208,15 @@ public class BlogSchemaInitializer implements ApplicationRunner {
         }
     }
 
-    private void addColumnIfMissing(String tableName, String columnName, String definition) {
+    /** 返回是否新增了该字段。 */
+    private boolean addColumnIfMissing(String tableName, String columnName, String definition) {
         Integer tableCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
                 Integer.class,
                 tableName
         );
         if (tableCount == null || tableCount == 0) {
-            return;
+            return false;
         }
 
         Integer columnCount = jdbcTemplate.queryForObject(
@@ -148,7 +227,9 @@ public class BlogSchemaInitializer implements ApplicationRunner {
         );
         if (columnCount != null && columnCount == 0) {
             jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
+            return true;
         }
+        return false;
     }
 
     private void addIndexIfMissing(String tableName, String indexName, String columns) {

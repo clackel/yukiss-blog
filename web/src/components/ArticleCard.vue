@@ -7,11 +7,13 @@
     @keydown.enter="$emit('open', article.id)"
   >
     <div class="article-card__head">
-      <button
+      <component
+        :is="article.authorDeleted ? 'div' : 'button'"
         v-if="showAuthor"
         class="author-line"
-        type="button"
-        @click.stop="$emit('open-author', article.authorId)"
+        :class="{ 'author-line--deleted': article.authorDeleted }"
+        :type="article.authorDeleted ? undefined : 'button'"
+        @click.stop="!article.authorDeleted && $emit('open-author', article.authorId)"
         @keydown.stop
       >
         <el-avatar :size="38" :src="mediaUrl(article.authorAvatar)">
@@ -21,8 +23,11 @@
           <b>{{ article.authorNickname || '匿名用户' }}</b>
           <span>{{ formatDate(article.createTime) }}</span>
         </div>
-      </button>
-      <span v-else class="article-date">{{ formatDate(article.createTime) }}</span>
+      </component>
+      <span v-else class="article-date">
+        <span v-if="isDraft" class="draft-badge">草稿</span>
+        {{ isDraft ? `最后编辑 ${formatDate(article.updateTime)}` : formatDate(article.createTime) }}
+      </span>
 
       <div v-if="manageable" class="article-card__manage" @click.stop>
         <el-button text size="small" @click="$emit('edit', article.id)">
@@ -37,12 +42,19 @@
     </div>
 
     <h3>{{ article.title }}</h3>
-    <p>{{ excerpt }}</p>
+    <p>{{ excerpt || (isDraft ? '（正文还是空的）' : '') }}</p>
+    <ArticleTags class="article-card__tags" :tags="article.tags || []" @select="$emit('select-tag', $event)" />
 
     <div class="article-card__footer">
-      <span><el-icon><Star /></el-icon>{{ article.likeCount || 0 }}</span>
-      <span><el-icon><ChatDotRound /></el-icon>{{ article.commentCount || 0 }}</span>
-      <span class="read-more">阅读全文 <el-icon><ArrowRight /></el-icon></span>
+      <span
+        ><el-icon><Star /></el-icon>{{ article.likeCount || 0 }}</span
+      >
+      <span
+        ><el-icon><ChatDotRound /></el-icon>{{ article.commentCount || 0 }}</span
+      >
+      <span class="read-more"
+        >阅读全文 <el-icon><ArrowRight /></el-icon
+      ></span>
     </div>
   </article>
 </template>
@@ -50,6 +62,7 @@
 <script setup>
 import { computed } from 'vue'
 import { ArrowRight, ChatDotRound, Delete, Edit, Star } from '@element-plus/icons-vue'
+import ArticleTags from './ArticleTags.vue'
 import { formatDate } from '../utils/date'
 import { markdownExcerpt } from '../utils/markdown'
 import { mediaUrl } from '../utils/media'
@@ -69,8 +82,9 @@ const props = defineProps({
   },
 })
 
-defineEmits(['open', 'open-author', 'edit', 'delete'])
+defineEmits(['open', 'open-author', 'edit', 'delete', 'select-tag'])
 
+const isDraft = computed(() => props.article.status === 'draft')
 const excerpt = computed(() => markdownExcerpt(props.article.content, 190))
 const authorInitial = computed(() => (props.article.authorNickname || '旅').slice(0, 1))
 </script>
@@ -79,7 +93,10 @@ const authorInitial = computed(() => (props.article.authorNickname || '旅').sli
 .article-card {
   padding: 24px;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .article-card:hover,
@@ -112,6 +129,25 @@ const authorInitial = computed(() => (props.article.authorNickname || '旅').sli
 .author-line:hover b,
 .author-line:focus-visible b {
   color: var(--theme-pink);
+}
+
+.author-line--deleted {
+  cursor: default;
+}
+
+.author-line--deleted:hover b,
+.author-line--deleted b {
+  color: var(--text-faint);
+}
+
+.draft-badge {
+  margin-right: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: white;
+  background: var(--text-faint);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .author-line div {
@@ -152,6 +188,10 @@ const authorInitial = computed(() => (props.article.authorNickname || '旅').sli
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.article-card__tags {
+  margin-top: 14px;
 }
 
 .article-card__footer {

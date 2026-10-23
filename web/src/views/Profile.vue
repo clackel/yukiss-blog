@@ -87,7 +87,12 @@
                     </el-select>
                   </el-form-item>
                   <el-form-item label="生日">
-                    <el-date-picker v-model="profileForm.birthday" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" />
+                    <el-date-picker
+                      v-model="profileForm.birthday"
+                      type="date"
+                      value-format="YYYY-MM-DD"
+                      placeholder="选择日期"
+                    />
                   </el-form-item>
                 </div>
                 <div class="two-cols">
@@ -128,13 +133,23 @@
                   <el-input v-model="passwordForm.oldPassword" type="password" show-password />
                 </el-form-item>
                 <el-form-item label="新密码">
-                  <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="至少 8 位，包含字母和数字" />
+                  <el-input
+                    v-model="passwordForm.newPassword"
+                    type="password"
+                    show-password
+                    placeholder="至少 8 位，包含字母和数字"
+                  />
                 </el-form-item>
                 <el-button type="primary" @click="changePassword">更新密码</el-button>
               </el-form>
 
               <el-divider />
-              <el-alert title="注销后账号将无法登录，邮箱会解除绑定。此操作需要再次输入密码确认。" type="warning" show-icon :closable="false" />
+              <el-alert
+                title="注销后账号将无法登录，邮箱会解除绑定。此操作需要再次输入密码确认。"
+                type="warning"
+                show-icon
+                :closable="false"
+              />
               <el-button type="danger" class="delete-btn" @click="openDeleteDialog">
                 <el-icon><Warning /></el-icon>
                 注销账号
@@ -166,7 +181,7 @@ import { mediaUrl } from '../utils/media'
 import { useUser } from '../composables/useUser'
 
 const router = useRouter()
-const { token, userInfo, showAuthDialog, saveUser, clearSession, refreshMe } = useUser()
+const { token, userInfo, showAuthDialog, saveToken, saveUser, clearSession, refreshMe } = useUser()
 
 const activeTab = ref('profile')
 const profileLoading = ref(false)
@@ -239,10 +254,11 @@ async function bindEmail() {
 }
 
 async function changePassword() {
-  await request.post('/user/change-password', passwordForm)
+  const data = apiData(await request.post('/user/change-password', passwordForm))
+  saveToken(data.token)
   passwordForm.oldPassword = ''
   passwordForm.newPassword = ''
-  ElMessage.success('密码已更新')
+  ElMessage.success('密码已更新，其他设备需要重新登录')
 }
 
 function beforeUpload(file) {

@@ -3,28 +3,74 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="moon.yukiss.mapper.ArticleMapper">
+    <!-- like_count / comment_count / last_comment_time 为冗余计数字段，随 a.* 一起返回 -->
     <sql id="articleSelect">
-        SELECT a.*, u.nickname AS authorNickname, u.avatar AS authorAvatar,
-               (SELECT COUNT(*) FROM article_like al WHERE al.article_id = a.id) AS likeCount,
-               (SELECT COUNT(*) FROM article_comment ac WHERE ac.article_id = a.id) AS commentCount,
-               (SELECT MAX(ac2.create_time) FROM article_comment ac2 WHERE ac2.article_id = a.id) AS lastCommentTime,
+        SELECT a.*,
+               (u.id IS NULL OR u.is_deleted = 1) AS authorDeleted,
+               CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN '已注销用户' ELSE u.nickname END AS authorNickname,
+               CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN NULL ELSE u.avatar END AS authorAvatar,
+               (SELECT GROUP_CONCAT(t.name ORDER BY t.id SEPARATOR ',')
+                FROM article_tag t WHERE t.article_id = a.id) AS tagNames,
                EXISTS(
-                   SELECT 1 FROM article_like al2
-                   WHERE al2.article_id = a.id AND al2.user_id = #{currentUserId}
+                   SELECT 1 FROM article_like al
+                   WHERE al.article_id = a.id AND al.user_id = #{currentUserId}
                ) AS likedByMe
         FROM article a
         LEFT JOIN user u ON a.author_id = u.id
     </sql>
 
+    <!--
+        搜索条件（标题或正文包含关键词，或作者昵称包含关键词）：
+        - 标题 / 正文始终以 LIKE 子串匹配为准，likeKeyword 已在 service 中转义 % 和 _
+        - fulltextKeyword 不为空时，先用 ngram 全文索引缩小候选范围，再对候选做 LIKE，
+          避免全表扫描；ngram 会忽略标点，所以不能只靠 MATCH 判断（"100%" 会命中 "100"）
+        - 作者昵称用 LIKE 匹配，并排除已注销用户
+        子查询写成 IN (...) 以便 MySQL 只执行一次并物化结果。
+    -->
+    <sql id="pageFilter">
+        <where>
+            a.status = 'published'
+            <if test="tag != null">
+                AND EXISTS (SELECT 1 FROM article_tag t WHERE t.article_id = a.id AND t.name = #{tag})
+            </if>
+            <if test="likeKeyword != null">
+                AND (
+                (
+                    <if test="fulltextKeyword != null">
+                        a.id IN (
+                            SELECT ft.id FROM article ft
+                            WHERE MATCH(ft.title, ft.content) AGAINST(#{fulltextKeyword} IN BOOLEAN MODE)
+                        ) AND
+                    </if>
+                    (a.title LIKE CONCAT('%', #{likeKeyword}, '%') OR a.content LIKE CONCAT('%', #{likeKeyword}, '%'))
+                )
+                OR a.author_id IN (
+                    SELECT su.id FROM user su
+                    WHERE su.is_deleted = 0 AND su.nickname LIKE CONCAT('%', #{likeKeyword}, '%')
+                )
+                )
+            </if>
+        </where>
+    </sql>
+
     <select id="list" resultType="moon.yukiss.entity.Article">
         <include refid="articleSelect" />
-        ORDER BY a.create_time DESC
+        WHERE a.status = 'published'
+        ORDER BY a.create_time DESC, a.id DESC
     </select>
 
     <select id="listByAuthor" resultType="moon.yukiss.entity.Article">
         <include refid="articleSelect" />
         WHERE a.author_id = #{authorId}
-        ORDER BY a.create_time DESC
+        <choose>
+            <when test="includeDrafts">
+                ORDER BY a.status = 'draft' DESC, a.create_time DESC, a.id DESC
+            </when>
+            <otherwise>
+                AND a.status = 'published'
+                ORDER BY a.create_time DESC, a.id DESC
+            </otherwise>
+        </choose>
     </select>
 
     <select id="getById" resultType="moon.yukiss.entity.Article">
@@ -35,39 +81,43 @@
     <select id="countPage" resultType="long">
         SELECT COUNT(*)
         FROM article a
-        LEFT JOIN user u ON a.author_id = u.id
-        <where>
-            <if test="keyword != null and keyword != ''">
-                a.title LIKE CONCAT('%', #{keyword}, '%')
-                OR a.content LIKE CONCAT('%', #{keyword}, '%')
-                OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
-            </if>
-        </where>
+        <include refid="pageFilter" />
     </select>
 
     <select id="page" resultType="moon.yukiss.entity.Article">
         <include refid="articleSelect" />
-        <where>
-            <if test="keyword != null and keyword != ''">
-                a.title LIKE CONCAT('%', #{keyword}, '%')
-                OR a.content LIKE CONCAT('%', #{keyword}, '%')
-                OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
-            </if>
-        </where>
+        <include refid="pageFilter" />
         <choose>
             <when test="sort == 'commented'">
-                ORDER BY lastCommentTime DESC, a.create_time DESC
+                ORDER BY a.last_comment_time DESC, a.create_time DESC, a.id DESC
             </when>
             <when test="sort == 'likes'">
-                ORDER BY likeCount DESC, a.create_time DESC
+                ORDER BY a.like_count DESC, a.create_time DESC, a.id DESC
             </when>
             <when test="sort == 'comments'">
-                ORDER BY commentCount DESC, a.create_time DESC
+                ORDER BY a.comment_count DESC, a.create_time DESC, a.id DESC
             </when>
             <otherwise>
-                ORDER BY a.create_time DESC
+                ORDER BY a.create_time DESC, a.id DESC
             </otherwise>
         </choose>
         LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <insert id="insertTags">
+        INSERT INTO article_tag (article_id, name) VALUES
+        <foreach collection="tags" item="tag" separator=",">
+            (#{articleId}, #{tag})
+        </foreach>
+    </insert>
+
+    <select id="listPopularTags" resultType="moon.yukiss.dto.TagCount">
+        SELECT t.name, COUNT(*) AS articleCount
+        FROM article_tag t
+        JOIN article a ON a.id = t.article_id
+        WHERE a.status = 'published'
+        GROUP BY t.name
+        ORDER BY articleCount DESC, t.name
+        LIMIT #{limit}
     </select>
 </mapper>

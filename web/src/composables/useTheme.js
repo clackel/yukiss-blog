@@ -19,7 +19,7 @@ function applyTheme() {
 }
 
 const mediaQuery = window.matchMedia?.('(prefers-color-scheme: dark)')
-mediaQuery?.addEventListener('change', event => {
+mediaQuery?.addEventListener('change', (event) => {
   systemDark.value = event.matches
   applyTheme()
 })

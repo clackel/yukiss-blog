@@ -4,8 +4,8 @@ setlocal
 set "PROJECT_ROOT=%~dp0"
 set "BACKEND_DIR=%PROJECT_ROOT%server"
 set "FRONTEND_DIR=%PROJECT_ROOT%web"
-if not defined BLOG_DB_PASSWORD (
-    echo [WARN] BLOG_DB_PASSWORD is not set; the backend will use its configured default.
+if not defined BLOG_DB_PASSWORD if not exist "%BACKEND_DIR%\.env" (
+    echo [WARN] BLOG_DB_PASSWORD is not set and server\.env was not found; copy server\.env.example to server\.env and fill in your database password.
 )
 
 title Yukiss Blog Launcher

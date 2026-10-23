@@ -3,6 +3,7 @@ package moon.yukiss.interceptors;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import moon.yukiss.common.ApiResponse;
+import moon.yukiss.mapper.UserMapper;
 import moon.yukiss.utils.JwtUtils;
 import moon.yukiss.utils.ThreadLocalUtil;
 import org.springframework.http.MediaType;
@@ -16,10 +17,12 @@ import java.util.Map;
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
     private final JwtUtils jwtUtils;
+    private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
 
-    public LoginInterceptor(JwtUtils jwtUtils, ObjectMapper objectMapper) {
+    public LoginInterceptor(JwtUtils jwtUtils, UserMapper userMapper, ObjectMapper objectMapper) {
         this.jwtUtils = jwtUtils;
+        this.userMapper = userMapper;
         this.objectMapper = objectMapper;
     }
 
@@ -35,30 +38,42 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         String token = request.getHeader("Authorization");
         if (isPublicRead(request)) {
-            if (token != null && !token.isBlank()) {
-                try {
-                    ThreadLocalUtil.set(jwtUtils.parseToken(token));
-                } catch (Exception ignored) {
-                    ThreadLocalUtil.remove();
-                }
+            // 公开读取：token 无效或已失效时按匿名访问处理
+            Map<String, Object> claims = resolveActiveClaims(token);
+            if (claims != null) {
+                ThreadLocalUtil.set(claims);
             }
             return true;
         }
 
-        if (token == null || token.isBlank()) {
+        Map<String, Object> claims = resolveActiveClaims(token);
+        if (claims == null) {
             writeUnauthorized(response);
             return false;
         }
+        ThreadLocalUtil.set(claims);
+        return true;
+    }
 
-        try {
-            Map<String, Object> claims = jwtUtils.parseToken(token);
-            ThreadLocalUtil.set(claims);
-            return true;
-        } catch (Exception ex) {
-            ThreadLocalUtil.remove();
-            writeUnauthorized(response);
-            return false;
+    /**
+     * 校验签名与过期时间，并确认账号未注销、token 签发后未修改过密码。
+     * 任一条件不满足返回 null。
+     */
+    private Map<String, Object> resolveActiveClaims(String token) {
+        if (token == null || token.isBlank()) {
+            return null;
         }
+        Map<String, Object> claims;
+        try {
+            claims = jwtUtils.parseToken(token);
+        } catch (Exception ex) {
+            return null;
+        }
+        if (!(claims.get("id") instanceof Number id)
+                || !(claims.get(JwtUtils.ISSUED_AT_CLAIM) instanceof Number issuedAt)) {
+            return null;
+        }
+        return userMapper.isTokenActive(id.intValue(), issuedAt.longValue()) ? claims : null;
     }
 
     @Override

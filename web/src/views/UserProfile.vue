@@ -17,14 +17,13 @@
           <h1>{{ profile.nickname || '匿名用户' }}</h1>
           <p>{{ profile.bio || '这个用户还没有填写个人简介。' }}</p>
           <div class="profile-meta">
-            <span v-if="profile.location"><el-icon><Location /></el-icon>{{ profile.location }}</span>
-            <span><el-icon><Calendar /></el-icon>{{ formatDate(profile.createTime) }} 加入</span>
-            <a
-              v-if="safeWebsite"
-              :href="safeWebsite"
-              target="_blank"
-              rel="noopener noreferrer"
+            <span v-if="profile.location"
+              ><el-icon><Location /></el-icon>{{ profile.location }}</span
             >
+            <span
+              ><el-icon><Calendar /></el-icon>{{ formatDate(profile.createTime) }} 加入</span
+            >
+            <a v-if="safeWebsite" :href="safeWebsite" target="_blank" rel="noopener noreferrer">
               <el-icon><Link /></el-icon>个人网站
             </a>
           </div>
@@ -66,11 +65,7 @@
           </div>
         </div>
 
-        <el-empty
-          v-if="!articles.length"
-          class="glass-card empty-state"
-          description="该用户还没有发布文章"
-        />
+        <el-empty v-if="!articles.length" class="glass-card empty-state" description="该用户还没有发布文章" />
 
         <div v-else class="article-list">
           <ArticleCard
@@ -79,6 +74,7 @@
             :article="article"
             :show-author="false"
             @open="openArticle"
+            @select-tag="openTag"
           />
         </div>
       </section>
@@ -153,6 +149,7 @@ async function toggleFollow() {
 }
 
 const openArticle = (id) => router.push(`/articles/${id}`)
+const openTag = (tag) => router.push({ path: '/community', query: { tag } })
 
 watch(() => [route.params.id, token.value], loadProfile, { immediate: true })
 </script>

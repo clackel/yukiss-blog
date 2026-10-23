@@ -1,7 +1,13 @@
 server:
   port: ${BLOG_SERVER_PORT:4000}
+  # 部署在 Nginx 等本机反向代理之后时，从 X-Forwarded-For 获取真实客户端 IP（登录限流依赖它）。
+  # 只信任内网 / 本机代理转发的请求头，外部伪造的请求头会被忽略。
+  forward-headers-strategy: native
 
 spring:
+  config:
+    # 从启动目录（server/）读取本地 .env；系统环境变量优先级更高
+    import: 'optional:file:.env[.properties]'
   datasource:
     url: '${BLOG_DB_URL:jdbc:mysql://localhost:3306/my_blog_db?createDatabaseIfNotExist=true&serverTimezone=GMT%2B8}'
     username: ${BLOG_DB_USERNAME:root}

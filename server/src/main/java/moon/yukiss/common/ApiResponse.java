@@ -16,6 +16,10 @@ public class ApiResponse<T> {
         return new ApiResponse<>(true, message, null);
     }
 
+    public static <T> ApiResponse<T> ok(String message, T data) {
+        return new ApiResponse<>(true, message, data);
+    }
+
     public static ApiResponse<Void> fail(String message) {
         return new ApiResponse<>(false, message, null);
     }

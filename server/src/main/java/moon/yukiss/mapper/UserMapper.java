@@ -40,4 +40,9 @@ public interface UserMapper {
 
     @Update("UPDATE user SET is_deleted = 1, deleted_time = NOW(), email = NULL WHERE id = #{id}")
     void deleteById(Integer id);
+
+    // 在 MySQL 内比较时间，NOW() 与 FROM_UNIXTIME() 使用同一会话时区
+    @Select("SELECT COUNT(*) > 0 FROM user WHERE id = #{id} AND is_deleted = 0 " +
+            "AND (password_updated_time IS NULL OR password_updated_time <= FROM_UNIXTIME(#{issuedAt}))")
+    boolean isTokenActive(@Param("id") Integer id, @Param("issuedAt") long issuedAt);
 }
