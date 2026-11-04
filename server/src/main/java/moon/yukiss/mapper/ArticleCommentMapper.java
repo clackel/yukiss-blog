@@ -18,6 +18,7 @@ public interface ArticleCommentMapper {
                    (u.id IS NULL OR u.is_deleted = 1) AS userDeleted,
                    CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN '已注销用户' ELSE u.nickname END AS nickname,
                    CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN NULL ELSE u.avatar END AS avatar,
+                   CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN NULL ELSE u.username END AS username,
                    CASE WHEN pu.is_deleted = 1 THEN '已注销用户' ELSE pu.nickname END AS parentNickname,
                    (SELECT COUNT(*) FROM comment_like cl WHERE cl.comment_id = c.id) AS likeCount,
                    EXISTS(

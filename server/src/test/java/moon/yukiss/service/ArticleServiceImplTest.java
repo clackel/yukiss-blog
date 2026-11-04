@@ -32,12 +32,14 @@ import static org.mockito.Mockito.when;
 
 class ArticleServiceImplTest {
     private ArticleMapper articleMapper;
+    private ArticleViewService articleViewService;
     private ArticleServiceImpl articleService;
 
     @BeforeEach
     void setUp() {
         articleMapper = mock(ArticleMapper.class);
-        articleService = new ArticleServiceImpl(articleMapper);
+        articleViewService = mock(ArticleViewService.class);
+        articleService = new ArticleServiceImpl(articleMapper, articleViewService);
     }
 
     @AfterEach
@@ -49,10 +51,10 @@ class ArticleServiceImplTest {
     void pageNormalizesSearchAndLegacyPopularSort() {
         ThreadLocalUtil.set(Map.of("id", 7));
         Article article = article(11, 3);
-        when(articleMapper.countPage("Spring", "+\"Spring\"", null)).thenReturn(12L);
-        when(articleMapper.page(7, "Spring", "+\"Spring\"", null, "likes", 10, 10)).thenReturn(List.of(article));
+        when(articleMapper.countPage("Spring", "+\"Spring\"", null, null)).thenReturn(12L);
+        when(articleMapper.page(7, "Spring", "+\"Spring\"", null, null, "likes", 10, 10)).thenReturn(List.of(article));
 
-        PageResult<Article> result = articleService.page(2, 10, "  Spring  ", "POPULAR", null);
+        PageResult<Article> result = articleService.page(2, 10, "  Spring  ", "POPULAR", null, null);
 
         assertEquals(12, result.getTotal());
         assertEquals(2, result.getPage());
@@ -62,68 +64,68 @@ class ArticleServiceImplTest {
 
     @Test
     void pageEscapesLikeWildcardsSoTheyMatchLiterally() {
-        articleService.page(1, 10, "50%_off\\", null, null);
+        articleService.page(1, 10, "50%_off\\", null, null, null);
 
         // LIKE 关键词按字面转义；全文条件只取字母数字片段（ngram 会忽略标点）
-        verify(articleMapper).countPage("50\\%\\_off\\\\", "+\"50\" +\"off\"", null);
+        verify(articleMapper).countPage("50\\%\\_off\\\\", "+\"50\" +\"off\"", null, null);
     }
 
     @Test
     void punctuationIsDroppedFromFulltextTermsButKeptForExactLikeMatch() {
-        articleService.page(1, 10, "100%", null, null);
-        articleService.page(1, 10, "c++", null, null);
+        articleService.page(1, 10, "100%", null, null, null);
+        articleService.page(1, 10, "c++", null, null, null);
 
-        verify(articleMapper).countPage("100\\%", "+\"100\"", null);
+        verify(articleMapper).countPage("100\\%", "+\"100\"", null, null);
         // "c" 只有 1 个字符，ngram 无法索引，只能用 LIKE
-        verify(articleMapper).countPage("c++", null, null);
+        verify(articleMapper).countPage("c++", null, null, null);
     }
 
     @Test
     void pageFallsBackToLikeForKeywordsTooShortForTheFulltextIndex() {
-        articleService.page(1, 10, "猫", null, null);
-        articleService.page(1, 10, "Vue 3", null, null);
+        articleService.page(1, 10, "猫", null, null, null);
+        articleService.page(1, 10, "Vue 3", null, null, null);
 
         // ngram 最小 2 个字符：单字或包含单字片段的关键词不能走全文索引
-        verify(articleMapper).countPage("猫", null, null);
-        verify(articleMapper).countPage("Vue 3", null, null);
+        verify(articleMapper).countPage("猫", null, null, null);
+        verify(articleMapper).countPage("Vue 3", null, null, null);
     }
 
     @Test
     void pageRequiresEveryFragmentInFulltextQuery() {
-        articleService.page(1, 10, "say \"hi\" there", null, null);
+        articleService.page(1, 10, "say \"hi\" there", null, null, null);
 
         // 引号等布尔模式运算符不会进入全文条件
-        verify(articleMapper).countPage("say \"hi\" there", "+\"say\" +\"hi\" +\"there\"", null);
+        verify(articleMapper).countPage("say \"hi\" there", "+\"say\" +\"hi\" +\"there\"", null, null);
     }
 
     @Test
     void pagePassesNormalizedTagFilter() {
-        articleService.page(1, 10, null, null, "  #Vue ");
+        articleService.page(1, 10, null, null, "  #Vue ", null);
 
-        verify(articleMapper).countPage(null, null, "Vue");
+        verify(articleMapper).countPage(null, null, "Vue", null);
     }
 
     @Test
     void pageRejectsUnsupportedSort() {
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> articleService.page(1, 10, null, "oldest", null)
+                () -> articleService.page(1, 10, null, "oldest", null, null)
         );
 
         assertEquals(400, exception.getStatus().value());
-        verify(articleMapper, never()).countPage(any(), any(), any());
+        verify(articleMapper, never()).countPage(any(), any(), any(), any());
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"published", "commented", "likes", "comments"})
+    @ValueSource(strings = {"published", "commented", "likes", "comments", "views"})
     void pageAcceptsEachSupportedSort(String sort) {
-        when(articleMapper.countPage(null, null, null)).thenReturn(1L);
-        when(articleMapper.page(null, null, null, null, sort, 0, 10)).thenReturn(List.of(article(11, 3)));
+        when(articleMapper.countPage(null, null, null, null)).thenReturn(1L);
+        when(articleMapper.page(null, null, null, null, null, sort, 0, 10)).thenReturn(List.of(article(11, 3)));
 
-        PageResult<Article> result = articleService.page(1, 10, null, sort, null);
+        PageResult<Article> result = articleService.page(1, 10, null, sort, null, null);
 
         assertEquals(1, result.getTotal());
-        verify(articleMapper).page(null, null, null, null, sort, 0, 10);
+        verify(articleMapper).page(null, null, null, null, null, sort, 0, 10);
     }
 
     @Test

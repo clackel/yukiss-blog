@@ -32,7 +32,18 @@
       </div>
       <p v-else>
         <span v-if="isReply" class="reply-label">回复 {{ comment.parentNickname || parentNickname || '朋友' }}</span>
-        {{ comment.content }}
+        <template v-for="(segment, index) in contentSegments" :key="index">
+          <button
+            v-if="segment.type === 'mention'"
+            type="button"
+            class="mention-link"
+            :title="segment.user.nickname || segment.user.username"
+            @click="$emit('open-user', segment.user.id)"
+          >
+            {{ segment.text }}
+          </button>
+          <template v-else>{{ segment.text }}</template>
+        </template>
       </p>
 
       <div v-if="!isEditing" class="comment-actions">
@@ -55,6 +66,7 @@ import { ElMessage } from 'element-plus'
 import request, { apiData } from '../utils/request'
 import { formatDateTime } from '../utils/date'
 import { mediaUrl } from '../utils/media'
+import { splitMentions } from '../utils/mention'
 
 const props = defineProps({
   comment: { type: Object, required: true },
@@ -73,6 +85,7 @@ const isSaving = ref(false)
 const editContent = ref('')
 
 const initial = computed(() => (props.comment.nickname || '评').slice(0, 1))
+const contentSegments = computed(() => splitMentions(props.comment.content, props.comment.mentions))
 const isMine = computed(() => props.currentUserId !== null && Number(props.comment.userId) === props.currentUserId)
 const canEdit = computed(() => isMine.value)
 // 评论作者本人或文章作者可以删除
@@ -102,7 +115,7 @@ const saveEdit = async () => {
   isSaving.value = true
   try {
     const updated = apiData(await request.put(`/comment/${props.comment.id}`, { content }))
-    emit('update', { content: updated.content, updateTime: updated.updateTime })
+    emit('update', { content: updated.content, updateTime: updated.updateTime, mentions: updated.mentions || [] })
     isEditing.value = false
     ElMessage.success('评论已更新')
   } finally {
@@ -203,6 +216,21 @@ const saveEdit = async () => {
 
 .comment-actions button:disabled {
   cursor: default;
+}
+
+.mention-link {
+  padding: 0;
+  border: 0;
+  color: var(--theme-pink);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.mention-link:hover,
+.mention-link:focus-visible {
+  text-decoration: underline;
 }
 
 .reply-label {

@@ -15,7 +15,7 @@
         正在回复 {{ replyingTo.nickname || '匿名用户' }}
         <button type="button" @click="replyingTo = null">取消</button>
       </div>
-      <el-input
+      <el-mention
         ref="editorInput"
         v-model="newComment"
         type="textarea"
@@ -23,11 +23,22 @@
         maxlength="500"
         show-word-limit
         resize="none"
-        :placeholder="replyingTo ? `回复 ${replyingTo.nickname || '这位朋友'}…` : '写下你的想法…'"
+        whole
+        :options="mentionOptions"
+        :placeholder="
+          replyingTo ? `回复 ${replyingTo.nickname || '这位朋友'}…` : '写下你的想法，输入 @ 可以提及其他人…'
+        "
         @keydown.ctrl.enter="submitComment"
-      />
+      >
+        <template #label="{ item }">
+          <span class="mention-option">
+            <b>{{ item.label }}</b>
+            <small>@{{ item.value }}</small>
+          </span>
+        </template>
+      </el-mention>
       <div class="editor-actions">
-        <span>Ctrl + Enter 发送</span>
+        <span>Ctrl + Enter 发送 · @用户名 提及</span>
         <el-button type="primary" round class="anime-btn" :loading="isSubmitting" @click="submitComment">
           发送
         </el-button>
@@ -96,6 +107,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import CommentItem from './CommentItem.vue'
 import { useUser } from '../composables/useUser'
+import { mentionCandidates } from '../utils/mention'
 import request, { apiData } from '../utils/request'
 
 const PAGE_SIZE = 10
@@ -103,6 +115,8 @@ const PAGE_SIZE = 10
 const props = defineProps({
   articleId: { type: Number, required: true },
   articleAuthorId: { type: Number, default: null },
+  // 文章作者用户名，作为 @ 候选之一
+  articleAuthorUsername: { type: String, default: '' },
   // 文章评论总数（含回复），由父组件维护
   totalCount: { type: Number, default: 0 },
   interactive: { type: Boolean, default: true },
@@ -127,6 +141,16 @@ const editorInput = ref(null)
 
 const currentUserId = computed(() => (userInfo.value?.id ? Number(userInfo.value.id) : null))
 const hasMore = computed(() => comments.value.length < totalTopLevel.value)
+// @ 候选：文章作者 + 当前已加载的评论者（含回复者），不含自己
+const mentionOptions = computed(() => {
+  const users = []
+  if (props.articleAuthorUsername) users.push({ username: props.articleAuthorUsername, nickname: '' })
+  for (const comment of comments.value) {
+    users.push(comment)
+    for (const reply of comment.replies || []) users.push(reply)
+  }
+  return mentionCandidates(users, userInfo.value?.username || '')
+})
 const remainingTopLevel = computed(() => Math.max(totalTopLevel.value - comments.value.length, 0))
 
 const fetchPage = async (pageNumber) =>
@@ -221,7 +245,8 @@ const startReply = async (comment) => {
   if (!requireLogin()) return
   replyingTo.value = comment
   await nextTick()
-  editorInput.value?.focus()
+  // el-mention 暴露的是内部的 el-input 实例
+  editorInput.value?.input?.focus()
 }
 
 const toggleLike = async (comment) => {
@@ -334,6 +359,16 @@ watch(
 .editor-actions span {
   color: var(--text-faint);
   font-size: 12px;
+}
+
+.mention-option {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mention-option small {
+  color: var(--text-faint);
 }
 
 .login-to-comment {

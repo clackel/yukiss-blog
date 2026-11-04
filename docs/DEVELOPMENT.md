@@ -59,7 +59,20 @@ controller → service（接口）→ service/impl → mapper → MySQL
 
 ### 冗余计数
 
-`article.like_count`、`comment_count`、`last_comment_time` 是冗余字段，供列表展示和排序使用，避免每行都做子查询。点赞、评论、删除评论之后，在同一事务内调用 `ArticleMapper.refreshLikeCount` / `refreshCommentStats` **从源表重新统计**，而不是加一减一，避免并发下出错。评论的点赞数仍为实时统计。
+`article.like_count`、`comment_count`、`bookmark_count`、`last_comment_time` 是冗余字段，供列表展示和排序使用，避免每行都做子查询。点赞、收藏、评论、删除评论之后，在同一事务内调用 `ArticleMapper.refreshLikeCount` / `refreshBookmarkCount` / `refreshCommentStats` **从源表重新统计**，而不是加一减一，避免并发下出错。评论的点赞数仍为实时统计。
+
+`article.view_count` 是例外：浏览量没有源表，由 `ArticleViewService` 在内存（`ConcurrentHashMap<Integer, LongAdder>`）中累计，定时任务每 10 秒（`app.view-count.flush-interval-ms`）把增量批量 `UPDATE ... view_count = view_count + delta` 写入，进程关闭时也会刷新一次。作者查看自己的文章、查看草稿都不计数；文章详情接口返回的 `viewCount` 会加上尚未写库的增量。进程异常退出最多丢失一个刷新周期的浏览量。
+
+### 收藏与关注动态
+
+- 收藏存放在 `article_bookmark`（`user_id + article_id` 唯一），实现方式与点赞相同（`ArticleBookmarkServiceImpl`），但不发通知。文章删除时一并删除收藏；账号注销不处理收藏记录（与点赞一致）。
+- 关注动态复用分页搜索接口：`GET /articles/page?scope=following` 时 service 调用 `CurrentUser.requireId()` 拿到 `followerId` 传给 `pageFilter`，SQL 以 `author_id IN (SELECT following_id FROM user_follow WHERE follower_id = ?)` 过滤，关键词、标签、排序照常生效。该接口是公开读取接口，未登录时由 `requireId` 抛出 401。
+
+### 评论 @ 提及
+
+- 解析规则在 `utils/Mentions`：`@` 后接 3–20 位字母、数字、下划线，且 `@` 前后不能紧挨字母数字（避免把邮箱当作提及），每条评论最多取 10 个。前端 `utils/mention.js` 使用同样的正则做渲染切分。
+- `ArticleCommentServiceImpl.attachMentions` 对一批评论只查一次库（`UserMapper.findMentionableByUsernames`，只返回未注销用户），填充 `ArticleComment.mentions`。发表评论时给被提及者发 `mention` 通知，已经因 `comment` / `reply` 收到通知的人不重复发；编辑评论不补发。
+- 评论和文章都返回了 `username` / `authorUsername`，前端评论区用它们组成 `el-mention` 的自动补全候选。
 
 ### 搜索
 
@@ -70,7 +83,7 @@ controller → service（接口）→ service/impl → mapper → MySQL
 
 ### 通知
 
-`NotificationService.notify` / `retract` 由评论、点赞、关注的业务代码调用，自动忽略对自己内容的操作。取消点赞或关注时撤回对应通知；删除评论、文章、账号时同步删除相关通知（见 `ArticleCommentServiceImpl.deleteComment`、`ArticleMapper.deleteNotificationsByArticleId`、`UserServiceImpl.deleteAccount`）。前端每 60 秒轮询一次未读数。
+`NotificationService.notify` / `retract` 由评论、点赞、关注、@ 提及的业务代码调用，自动忽略对自己内容的操作。取消点赞或关注时撤回对应通知；删除评论、文章、账号时同步删除相关通知（见 `ArticleCommentServiceImpl.deleteComment`、`ArticleMapper.deleteNotificationsByArticleId`、`UserServiceImpl.deleteAccount`）。前端每 60 秒轮询一次未读数。
 
 ### 上传与清理
 
@@ -105,7 +118,9 @@ controller → service（接口）→ service/impl → mapper → MySQL
 | `src/router/index.js` | 路由表；`meta.requiresAuth` 的页面在未登录时跳转到 `/?login=1&redirect=...` |
 | `src/utils/markdown.js` + `components/MarkdownContent.vue` | Markdown 渲染，输出经 DOMPurify 过滤；图片只允许外部 http(s) 地址和本站 `/uploads/` |
 | `src/utils/media.js` | 将上传文件、头像等相对路径补全为后端地址 |
-| `src/components/CommentSection.vue` + `CommentItem.vue` | 评论区：分页加载、发表、回复、编辑、删除、点赞；从通知跳转时定位到 `#comment-id` |
+| `src/components/CommentSection.vue` + `CommentItem.vue` | 评论区：分页加载、发表、回复、编辑、删除、点赞、`@` 提及（`el-mention` 自动补全，候选为文章作者和已加载的评论者）；从通知跳转时定位到 `#comment-id` |
+| `src/utils/mention.js` | 把评论正文按后端确认的 `mentions` 切成文本 / 提及片段，以及生成 `@` 候选 |
+| `src/views/Bookmarks.vue` | 我的收藏列表（`/bookmarks`） |
 | `src/views/` | 页面组件 |
 
 Element Plus 组件由 `unplugin-vue-components` 按需引入（见 `vite.config.js`），模板中直接使用 `<el-xxx>` 即可，无需手动注册；`ElMessage` 等函数式 API 仍从 `element-plus` 显式导入。样式在 `main.js` 中整体引入。

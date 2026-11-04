@@ -28,9 +28,23 @@
           <el-button type="primary" size="large" class="anime-btn" @click="submitSearch">搜索</el-button>
         </div>
 
+        <div v-if="token" class="scope-switch glass-card" role="tablist" aria-label="文章范围">
+          <button
+            v-for="option in scopeOptions"
+            :key="option.value"
+            role="tab"
+            type="button"
+            :aria-selected="scope === option.value"
+            :class="{ active: scope === option.value }"
+            @click="changeScope(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+
         <div class="feed-toolbar glass-card">
           <div>
-            <span class="section-kicker">搜索结果</span>
+            <span class="section-kicker">{{ scope === 'following' ? '关注动态' : '搜索结果' }}</span>
             <h2 class="section-title">{{ resultTitle }}</h2>
             <p class="section-desc">
               共 {{ pageData.total }} 篇，当前第 {{ pageData.page }} 页。
@@ -60,12 +74,11 @@
           <el-button type="primary" plain @click="loadPage">重新加载</el-button>
         </el-empty>
 
-        <el-empty
-          v-else-if="!pageData.items.length"
-          class="glass-card empty-state"
-          :description="keyword || tag ? '没有找到匹配的文章，换个条件试试' : '社区还很安静，等待第一篇文章'"
-        >
+        <el-empty v-else-if="!pageData.items.length" class="glass-card empty-state" :description="emptyDescription">
           <el-button v-if="keyword || tag" type="primary" plain @click="clearFilters">清除筛选</el-button>
+          <el-button v-else-if="scope === 'following'" type="primary" plain @click="changeScope('all')"
+            >去发现作者</el-button
+          >
           <el-button v-else-if="token" type="primary" class="anime-btn" @click="router.push('/editor')"
             >写第一篇</el-button
           >
@@ -126,6 +139,7 @@ const draftKeyword = ref('')
 const keyword = ref('')
 const tag = ref('')
 const sort = ref('published')
+const scope = ref('all')
 const popularTags = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -142,12 +156,22 @@ const sortOptions = [
   { value: 'commented', label: '评论时间' },
   { value: 'likes', label: '点赞数' },
   { value: 'comments', label: '评论数' },
+  { value: 'views', label: '浏览量' },
+]
+const scopeOptions = [
+  { value: 'all', label: '全部文章' },
+  { value: 'following', label: '我的关注' },
 ]
 const currentSortLabel = computed(() => sortOptions.find((option) => option.value === sort.value)?.label || '发布时间')
 const resultTitle = computed(() => {
   if (keyword.value) return `“${keyword.value}” 的结果`
   if (tag.value) return `#${tag.value}`
-  return '全部文章'
+  return scope.value === 'following' ? '关注的作者的文章' : '全部文章'
+})
+const emptyDescription = computed(() => {
+  if (keyword.value || tag.value) return '没有找到匹配的文章，换个条件试试'
+  if (scope.value === 'following') return '你关注的作者还没有发布文章，去发现页关注一些作者吧'
+  return '社区还很安静，等待第一篇文章'
 })
 
 const syncFromRoute = () => {
@@ -156,6 +180,8 @@ const syncFromRoute = () => {
   draftKeyword.value = keyword.value
   tag.value = normalized.tag
   sort.value = normalized.sort
+  // 未登录时忽略 scope=following，按全部文章展示
+  scope.value = token.value ? normalized.scope : 'all'
   pageData.page = normalized.page
 }
 
@@ -171,6 +197,7 @@ const loadPage = async () => {
           keyword: keyword.value || undefined,
           tag: tag.value || undefined,
           sort: sort.value,
+          scope: scope.value === 'following' ? 'following' : undefined,
         },
       })
     )
@@ -195,6 +222,7 @@ const updateRoute = (overrides = {}) => {
     keyword: keyword.value,
     tag: tag.value,
     sort: sort.value,
+    scope: scope.value,
     page: pageData.page,
     ...overrides,
   }
@@ -212,6 +240,11 @@ const selectTag = (value) => {
 const clearFilters = () => {
   draftKeyword.value = ''
   updateRoute({ keyword: '', tag: '', page: 1 })
+}
+
+const changeScope = (value) => {
+  if (scope.value === value) return
+  updateRoute({ scope: value, page: 1 })
 }
 
 const changeSort = (value) => {
@@ -301,6 +334,28 @@ onMounted(loadPopularTags)
 
 .feed-toolbar {
   margin-bottom: 18px;
+}
+
+.scope-switch {
+  margin-bottom: 18px;
+  padding: 6px;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.scope-switch button {
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.scope-switch button.active {
+  color: var(--theme-pink);
+  background: var(--accent-soft);
 }
 
 .active-tag {

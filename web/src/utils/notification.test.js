@@ -14,6 +14,7 @@ describe('Notification helpers', () => {
 
   it('has a readable fallback for unknown types', () => {
     expect(notificationText({ type: 'comment' })).toBe('评论了你的文章')
+    expect(notificationText({ type: 'mention' })).toBe('在评论中提到了你')
     expect(notificationText({ type: 'something-new' })).toBe('与你有新的互动')
   })
 })

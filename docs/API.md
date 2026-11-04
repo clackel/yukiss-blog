@@ -59,15 +59,22 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
   "updateTime": "2026-07-26T16:10:00",
   "lastCommentTime": "2026-07-26T17:30:00",
   "authorNickname": "Yukiss",
+  "authorUsername": "yukiss",
   "authorAvatar": "/uploads/avatar.png",
   "authorDeleted": false,
   "likeCount": 8,
   "commentCount": 3,
-  "likedByMe": true
+  "bookmarkCount": 2,
+  "viewCount": 120,
+  "likedByMe": true,
+  "bookmarkedByMe": false
 }
 ```
 
 - 标题 1–80 个字符；正文最长 50,000 个字符，发布时不能为空，草稿可以为空
+- `authorUsername`：作者用户名，供评论区 @ 提及使用；作者已注销时为 `null`
+- `viewCount`：浏览量。作者本人查看不计数，草稿不计数；浏览量先在内存中累计、每 10 秒批量写库，列表接口中的数值可能略有延迟
+- `bookmarkCount` / `bookmarkedByMe`：收藏数与当前用户是否已收藏
 - `status`：`published`（已发布）或 `draft`（草稿，仅作者本人可见）
 - `tags`：最多 5 个，每个 1–20 个字符，不能包含逗号；保存时会去掉开头的 `#` 并按不区分大小写去重
 - `createTime` 为发布时间：草稿首次发布时会更新为发布那一刻
@@ -85,16 +92,20 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
   "createTime": "2026-07-26 16:20:00",
   "updateTime": null,
   "nickname": "朋友",
+  "username": "friend",
   "avatar": null,
   "userDeleted": false,
   "parentNickname": null,
   "likeCount": 2,
   "likedByMe": false,
-  "replies": []
+  "replies": [],
+  "mentions": [{ "id": 3, "username": "yukiss", "nickname": "Yukiss" }]
 }
 ```
 
 - 评论最长 500 个字符，当前只允许回复顶级评论
+- `username`：评论者用户名，已注销时为 `null`
+- `mentions`：正文中 `@用户名` 提及到的、仍然存在的用户（按出现顺序，最多 10 个）。`@` 前后紧挨字母数字时不算提及（例如邮箱地址）；前端据此把 `@用户名` 渲染为主页链接
 - `updateTime` 只有编辑过的评论才有值
 - `replies`：评论列表接口中，顶级评论携带它的全部回复（按时间正序）；回复本身的 `replies` 为空
 
@@ -124,8 +135,10 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
 | `article_like` | 有人点赞文章 | 文章作者 |
 | `comment_like` | 有人点赞评论 | 评论作者 |
 | `follow` | 有人关注 | 被关注的用户 |
+| `mention` | 有人在评论中 `@` 到你 | 被提及的用户 |
 
 - 对自己的内容操作不产生通知；回复文章作者本人的评论时，作者只收到一条 `reply`
+- `mention` 只在发表评论时产生（编辑评论不会补发）；同一条评论里已经收到 `comment` 或 `reply` 的人不再收到 `mention`
 - 取消点赞、取消关注会撤回对应通知；评论或文章被删除时，相关通知一并删除
 - `follow` 类型的 `articleId`、`commentId` 为 `null`
 
@@ -136,6 +149,16 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
   "message": "点赞成功",
   "liked": true,
   "likeCount": 9
+}
+```
+
+### BookmarkResult
+
+```json
+{
+  "message": "收藏成功",
+  "bookmarked": true,
+  "bookmarkCount": 3
 }
 ```
 
@@ -348,7 +371,8 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
 | `pageSize` | `10` | 每页数量，1–50 |
 | `keyword` | 空 | 搜索标题、正文和作者昵称，最长 80 字 |
 | `tag` | 空 | 只返回带有该标签的文章（精确匹配，开头的 `#` 会被忽略） |
-| `sort` | `published` | `published`、`commented`、`likes` 或 `comments` |
+| `sort` | `published` | `published`、`commented`、`likes`、`comments` 或 `views` |
+| `scope` | `all` | `all` 为全部文章；`following` 只返回当前用户关注的作者的文章（关注动态），需要登录，未登录返回 `401` |
 
 `keyword` 按子串匹配，`%`、`_` 等字符按字面匹配。标题和正文借助 ngram 全文索引加速，结果与子串匹配一致；作者昵称匹配不包含已注销用户。
 
@@ -368,6 +392,9 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
 - `commented`：按最新评论时间倒序；无评论的文章排在后面
 - `likes`：按点赞数倒序，数量相同时按发布时间倒序
 - `comments`：按评论数倒序，数量相同时按发布时间倒序
+- `views`：按浏览量倒序，数量相同时按发布时间倒序
+
+`scope=following` 可以与 `keyword`、`tag`、`sort` 组合使用。
 
 旧参数 `latest` 和 `popular` 仍兼容，分别等同于 `published` 和 `likes`。
 
@@ -400,7 +427,7 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
 
 `GET /articles/{id}`，公开。
 
-草稿只有作者本人能获取，其他人（包括未登录访客）得到 `404`。
+草稿只有作者本人能获取，其他人（包括未登录访客）得到 `404`。作者以外的人获取已发布文章时浏览量加一。
 
 ### 发布文章
 
@@ -427,7 +454,7 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
 
 `DELETE /articles/{id}`
 
-仅作者本人可操作。文章的评论、点赞、评论点赞、标签和相关通知会在同一事务内删除。
+仅作者本人可操作。文章的评论、点赞、评论点赞、收藏、标签和相关通知会在同一事务内删除。
 
 ## 点赞接口
 
@@ -442,6 +469,20 @@ JWT 失效规则：除签名错误和过期（默认 12 小时）外，以下情
 `POST /comment/{commentId}/like`
 
 返回 `LikeResult`。
+
+## 收藏接口
+
+### 文章收藏切换
+
+`POST /bookmark?articleId=12`
+
+返回 `BookmarkResult`。重复调用会在收藏和取消收藏之间切换。草稿不能收藏（`400`），他人的草稿返回 `404`。收藏是私人行为，不会通知作者。
+
+### 我的收藏
+
+`GET /bookmark/mine?page=1&pageSize=10`
+
+按收藏时间倒序返回 `Article` 分页数据（结构同文章分页），`pageSize` 最大 50。被作者退回草稿的文章不会出现在列表中。
 
 ## 评论接口
 

@@ -30,6 +30,12 @@ export const routes = [
   },
   { path: '/profile', name: 'profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },
   {
+    path: '/bookmarks',
+    name: 'bookmarks',
+    component: () => import('../views/Bookmarks.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/notifications',
     name: 'notifications',
     component: () => import('../views/Notifications.vue'),

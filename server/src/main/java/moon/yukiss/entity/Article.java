@@ -28,7 +28,12 @@ public class Article {
     private Boolean authorDeleted;
     private Integer likeCount;
     private Integer commentCount;
+    private Integer bookmarkCount;
+    private Integer viewCount;
     private Boolean likedByMe;
+    private Boolean bookmarkedByMe;
+    /** 作者用户名，用于评论区 @ 提及；作者已注销时为 null */
+    private String authorUsername;
 
     /** 查询时由 GROUP_CONCAT 拼接的标签，逗号分隔；标签本身不允许包含逗号 */
     @JsonIgnore

@@ -39,9 +39,10 @@ public class ArticleController {
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "published") String sort,
-            @RequestParam(required = false) String tag
+            @RequestParam(required = false) String tag,
+            @RequestParam(defaultValue = "all") String scope
     ) {
-        return ApiResponse.ok(articleService.page(page, pageSize, keyword, sort, tag));
+        return ApiResponse.ok(articleService.page(page, pageSize, keyword, sort, tag, scope));
     }
 
     @GetMapping("/tags")

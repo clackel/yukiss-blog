@@ -5,22 +5,25 @@ export function normalizeArticleQuery(query = {}) {
     popular: 'likes',
   }
   const requestedSort = sortAliases[query.sort] || query.sort
-  const allowedSorts = ['published', 'commented', 'likes', 'comments']
+  const allowedSorts = ['published', 'commented', 'likes', 'comments', 'views']
   return {
     keyword: typeof query.q === 'string' ? query.q.trim().slice(0, 80) : '',
     tag: typeof query.tag === 'string' ? query.tag.trim().slice(0, 20) : '',
     sort: allowedSorts.includes(requestedSort) ? requestedSort : 'published',
+    // scope=following 只看关注的作者，其余值都视为全部
+    scope: query.scope === 'following' ? 'following' : 'all',
     page: Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1,
   }
 }
 
-export function buildArticleQuery({ keyword = '', tag = '', sort = 'published', page = 1 } = {}) {
+export function buildArticleQuery({ keyword = '', tag = '', sort = 'published', scope = 'all', page = 1 } = {}) {
   const query = {}
   const normalizedKeyword = keyword.trim()
   const normalizedTag = tag.trim()
   if (normalizedKeyword) query.q = normalizedKeyword
   if (normalizedTag) query.tag = normalizedTag
   if (sort !== 'published') query.sort = sort
+  if (scope === 'following') query.scope = 'following'
   if (page > 1) query.page = String(page)
   return query
 }

@@ -3,18 +3,23 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="moon.yukiss.mapper.ArticleMapper">
-    <!-- like_count / comment_count / last_comment_time 为冗余计数字段，随 a.* 一起返回 -->
+    <!-- like_count / comment_count / bookmark_count / view_count / last_comment_time 为冗余计数字段，随 a.* 一起返回 -->
     <sql id="articleSelect">
         SELECT a.*,
                (u.id IS NULL OR u.is_deleted = 1) AS authorDeleted,
                CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN '已注销用户' ELSE u.nickname END AS authorNickname,
                CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN NULL ELSE u.avatar END AS authorAvatar,
+               CASE WHEN u.id IS NULL OR u.is_deleted = 1 THEN NULL ELSE u.username END AS authorUsername,
                (SELECT GROUP_CONCAT(t.name ORDER BY t.id SEPARATOR ',')
                 FROM article_tag t WHERE t.article_id = a.id) AS tagNames,
                EXISTS(
                    SELECT 1 FROM article_like al
                    WHERE al.article_id = a.id AND al.user_id = #{currentUserId}
-               ) AS likedByMe
+               ) AS likedByMe,
+               EXISTS(
+                   SELECT 1 FROM article_bookmark ab
+                   WHERE ab.article_id = a.id AND ab.user_id = #{currentUserId}
+               ) AS bookmarkedByMe
         FROM article a
         LEFT JOIN user u ON a.author_id = u.id
     </sql>
@@ -26,10 +31,14 @@
           避免全表扫描；ngram 会忽略标点，所以不能只靠 MATCH 判断（"100%" 会命中 "100"）
         - 作者昵称用 LIKE 匹配，并排除已注销用户
         子查询写成 IN (...) 以便 MySQL 只执行一次并物化结果。
+        followerId 不为空时只返回该用户关注的作者的文章（关注动态）。
     -->
     <sql id="pageFilter">
         <where>
             a.status = 'published'
+            <if test="followerId != null">
+                AND a.author_id IN (SELECT uf.following_id FROM user_follow uf WHERE uf.follower_id = #{followerId})
+            </if>
             <if test="tag != null">
                 AND EXISTS (SELECT 1 FROM article_tag t WHERE t.article_id = a.id AND t.name = #{tag})
             </if>
@@ -97,10 +106,29 @@
             <when test="sort == 'comments'">
                 ORDER BY a.comment_count DESC, a.create_time DESC, a.id DESC
             </when>
+            <when test="sort == 'views'">
+                ORDER BY a.view_count DESC, a.create_time DESC, a.id DESC
+            </when>
             <otherwise>
                 ORDER BY a.create_time DESC, a.id DESC
             </otherwise>
         </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countBookmarked" resultType="long">
+        SELECT COUNT(*)
+        FROM article_bookmark ab
+        JOIN article a ON a.id = ab.article_id
+        WHERE ab.user_id = #{userId} AND a.status = 'published'
+    </select>
+
+    <!-- 收藏列表：按收藏时间倒序；文章退回草稿后不再出现 -->
+    <select id="pageBookmarked" resultType="moon.yukiss.entity.Article">
+        <include refid="articleSelect" />
+        JOIN article_bookmark mb ON mb.article_id = a.id AND mb.user_id = #{currentUserId}
+        WHERE a.status = 'published'
+        ORDER BY mb.create_time DESC, mb.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 

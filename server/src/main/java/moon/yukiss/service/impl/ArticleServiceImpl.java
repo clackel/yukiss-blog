@@ -7,6 +7,7 @@ import moon.yukiss.dto.TagCount;
 import moon.yukiss.entity.Article;
 import moon.yukiss.mapper.ArticleMapper;
 import moon.yukiss.service.ArticleService;
+import moon.yukiss.service.ArticleViewService;
 import moon.yukiss.utils.CurrentUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,13 +27,17 @@ public class ArticleServiceImpl implements ArticleService {
     static final int MAX_TAGS = 5;
     static final int MAX_TAG_LENGTH = 20;
     private static final int POPULAR_TAG_LIMIT = 20;
-    private static final Set<String> ALLOWED_SORTS = Set.of("published", "commented", "likes", "comments");
+    private static final Set<String> ALLOWED_SORTS = Set.of("published", "commented", "likes", "comments", "views");
     private static final Set<String> ALLOWED_STATUSES = Set.of(Article.STATUS_PUBLISHED, Article.STATUS_DRAFT);
+    static final String SCOPE_ALL = "all";
+    static final String SCOPE_FOLLOWING = "following";
 
     private final ArticleMapper articleMapper;
+    private final ArticleViewService articleViewService;
 
-    public ArticleServiceImpl(ArticleMapper articleMapper) {
+    public ArticleServiceImpl(ArticleMapper articleMapper, ArticleViewService articleViewService) {
         this.articleMapper = articleMapper;
+        this.articleViewService = articleViewService;
     }
 
     @Override
@@ -41,7 +46,7 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
-    public PageResult<Article> page(Integer page, Integer pageSize, String keyword, String sort, String tag) {
+    public PageResult<Article> page(Integer page, Integer pageSize, String keyword, String sort, String tag, String scope) {
         int normalizedPage = page == null ? 1 : page;
         int normalizedPageSize = pageSize == null ? DEFAULT_PAGE_SIZE : pageSize;
         if (normalizedPage < 1) {
@@ -56,8 +61,10 @@ public class ArticleServiceImpl implements ArticleService {
         String fulltextKeyword = normalizedKeyword == null ? null : toFulltextPhrase(normalizedKeyword);
         String normalizedTag = tag == null || tag.isBlank() ? null : normalizeTag(tag);
         String normalizedSort = normalizeSort(sort);
+        // 关注动态只对登录用户有意义，未登录时返回 401 而不是空列表
+        Integer followerId = SCOPE_FOLLOWING.equals(normalizeScope(scope)) ? CurrentUser.requireId() : null;
 
-        long total = articleMapper.countPage(likeKeyword, fulltextKeyword, normalizedTag);
+        long total = articleMapper.countPage(likeKeyword, fulltextKeyword, normalizedTag, followerId);
         int offset = (normalizedPage - 1) * normalizedPageSize;
         List<Article> items = total == 0
                 ? List.of()
@@ -66,6 +73,7 @@ public class ArticleServiceImpl implements ArticleService {
                         likeKeyword,
                         fulltextKeyword,
                         normalizedTag,
+                        followerId,
                         normalizedSort,
                         offset,
                         normalizedPageSize
@@ -98,6 +106,12 @@ public class ArticleServiceImpl implements ArticleService {
         if (article == null || (article.isDraft() && !article.getAuthorId().equals(currentUserId))) {
             throw BusinessException.notFound("文章不存在");
         }
+        // 作者查看自己的文章不计入浏览量；草稿没有浏览量
+        if (!article.isDraft() && !article.getAuthorId().equals(currentUserId)) {
+            articleViewService.record(id);
+        }
+        int storedViews = article.getViewCount() == null ? 0 : article.getViewCount();
+        article.setViewCount((int) Math.min(Integer.MAX_VALUE, storedViews + articleViewService.pendingCount(id)));
         return article;
     }
 
@@ -133,6 +147,7 @@ public class ArticleServiceImpl implements ArticleService {
         articleMapper.detachCommentRepliesByArticleId(id);
         articleMapper.deleteCommentsByArticleId(id);
         articleMapper.deleteLikesByArticleId(id);
+        articleMapper.deleteBookmarksByArticleId(id);
         articleMapper.deleteTagsByArticleId(id);
         articleMapper.deleteNotificationsByArticleId(id);
         articleMapper.deleteById(id);
@@ -267,7 +282,15 @@ public class ArticleServiceImpl implements ArticleService {
             normalized = "likes";
         }
         if (!ALLOWED_SORTS.contains(normalized)) {
-            throw new BusinessException("排序方式仅支持 published、commented、likes 或 comments");
+            throw new BusinessException("排序方式仅支持 published、commented、likes、comments 或 views");
+        }
+        return normalized;
+    }
+
+    private String normalizeScope(String scope) {
+        String normalized = scope == null || scope.isBlank() ? SCOPE_ALL : scope.trim().toLowerCase(Locale.ROOT);
+        if (!SCOPE_ALL.equals(normalized) && !SCOPE_FOLLOWING.equals(normalized)) {
+            throw new BusinessException("范围仅支持 all 或 following");
         }
         return normalized;
     }

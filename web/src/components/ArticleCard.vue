@@ -52,6 +52,12 @@
       <span
         ><el-icon><ChatDotRound /></el-icon>{{ article.commentCount || 0 }}</span
       >
+      <span :title="`收藏 ${article.bookmarkCount || 0}`"
+        ><el-icon><Collection /></el-icon>{{ article.bookmarkCount || 0 }}</span
+      >
+      <span v-if="!isDraft" :title="`浏览 ${article.viewCount || 0}`"
+        ><el-icon><View /></el-icon>{{ article.viewCount || 0 }}</span
+      >
       <span class="read-more"
         >阅读全文 <el-icon><ArrowRight /></el-icon
       ></span>
@@ -61,7 +67,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { ArrowRight, ChatDotRound, Delete, Edit, Star } from '@element-plus/icons-vue'
+import { ArrowRight, ChatDotRound, Collection, Delete, Edit, Star, View } from '@element-plus/icons-vue'
 import ArticleTags from './ArticleTags.vue'
 import { formatDate } from '../utils/date'
 import { markdownExcerpt } from '../utils/markdown'
