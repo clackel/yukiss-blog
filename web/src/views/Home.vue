@@ -38,6 +38,16 @@
           </div>
         </div>
 
+        <div class="glass-card bookmarks-card">
+          <span class="section-kicker">收藏夹</span>
+          <h3>我收藏的文章</h3>
+          <p>把值得再读一遍的文章收起来，随时回来翻看。</p>
+          <el-button plain round @click="router.push('/bookmarks')">
+            <el-icon><Collection /></el-icon>
+            查看收藏
+          </el-button>
+        </div>
+
         <div class="glass-card prompt-card">
           <span class="section-kicker">写作建议</span>
           <h3>下一篇可以写</h3>
@@ -94,7 +104,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { EditPen, Refresh } from '@element-plus/icons-vue'
+import { Collection, EditPen, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import ArticleCard from '../components/ArticleCard.vue'
@@ -221,12 +231,14 @@ onMounted(loadArticles)
 }
 
 .stats-card,
-.prompt-card {
+.prompt-card,
+.bookmarks-card {
   padding: 24px;
 }
 
 .stats-card h2,
-.prompt-card h3 {
+.prompt-card h3,
+.bookmarks-card h3 {
   margin: 8px 0 18px;
   color: var(--text-strong);
 }
@@ -260,10 +272,15 @@ onMounted(loadArticles)
   font-size: 11px;
 }
 
-.prompt-card p {
+.prompt-card p,
+.bookmarks-card p {
   margin: 0;
   color: var(--text-muted);
   line-height: 1.8;
+}
+
+.bookmarks-card .el-button {
+  margin-top: 16px;
 }
 
 .article-column {

@@ -11,6 +11,7 @@ public class Notification {
     public static final String TYPE_ARTICLE_LIKE = "article_like";
     public static final String TYPE_COMMENT_LIKE = "comment_like";
     public static final String TYPE_FOLLOW = "follow";
+    public static final String TYPE_MENTION = "mention";
 
     private Integer id;
     private String type;

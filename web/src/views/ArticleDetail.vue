@@ -60,8 +60,22 @@
             <el-icon><StarFilled v-if="article.likedByMe" /><Star v-else /></el-icon>
             {{ article.likedByMe ? '已点赞' : '点赞' }} {{ article.likeCount || 0 }}
           </el-button>
+          <el-button
+            round
+            :type="article.bookmarkedByMe ? 'primary' : 'default'"
+            :plain="article.bookmarkedByMe"
+            :loading="bookmarkLoading"
+            :disabled="isDraft"
+            @click="toggleBookmark"
+          >
+            <el-icon><CollectionTag v-if="article.bookmarkedByMe" /><Collection v-else /></el-icon>
+            {{ article.bookmarkedByMe ? '已收藏' : '收藏' }} {{ article.bookmarkCount || 0 }}
+          </el-button>
           <span
             ><el-icon><ChatDotRound /></el-icon> 评论 {{ article.commentCount || 0 }}</span
+          >
+          <span v-if="!isDraft"
+            ><el-icon><View /></el-icon> 浏览 {{ article.viewCount || 0 }}</span
           >
         </footer>
       </article>
@@ -69,6 +83,7 @@
       <CommentSection
         :article-id="article.id"
         :article-author-id="Number(article.authorId)"
+        :article-author-username="article.authorUsername || ''"
         :total-count="article.commentCount || 0"
         :interactive="!isDraft"
         @count-change="article.commentCount = Math.max((article.commentCount || 0) + $event, 0)"
@@ -79,7 +94,17 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { ArrowLeft, ChatDotRound, Delete, Edit, Star, StarFilled } from '@element-plus/icons-vue'
+import {
+  ArrowLeft,
+  ChatDotRound,
+  Collection,
+  CollectionTag,
+  Delete,
+  Edit,
+  Star,
+  StarFilled,
+  View,
+} from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import ArticleTags from '../components/ArticleTags.vue'
@@ -96,6 +121,7 @@ const { token, userInfo, openAuth } = useUser()
 const article = ref(null)
 const isLoading = ref(false)
 const likeLoading = ref(false)
+const bookmarkLoading = ref(false)
 const errorMessage = ref('')
 
 const articleId = () => Number(route.params.id)
@@ -135,6 +161,27 @@ const toggleArticleLike = async () => {
     article.value.likeCount = data.likeCount
   } finally {
     likeLoading.value = false
+  }
+}
+
+const toggleBookmark = async () => {
+  if (!token.value) {
+    openAuth('login', route.fullPath)
+    return
+  }
+  if (bookmarkLoading.value) return
+  bookmarkLoading.value = true
+  try {
+    const data = apiData(
+      await request.post('/bookmark', null, {
+        params: { articleId: articleId() },
+      })
+    )
+    article.value.bookmarkedByMe = data.bookmarked
+    article.value.bookmarkCount = data.bookmarkCount
+    ElMessage.success(data.message || (data.bookmarked ? '收藏成功' : '已取消收藏'))
+  } finally {
+    bookmarkLoading.value = false
   }
 }
 
@@ -265,8 +312,13 @@ watch(
   padding-top: 24px;
   border-top: 1px solid var(--border-soft);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 12px 18px;
+}
+
+.article-actions .el-button + .el-button {
+  margin-left: 0;
 }
 
 .article-actions span {

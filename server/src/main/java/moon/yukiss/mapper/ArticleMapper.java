@@ -28,10 +28,12 @@ public interface ArticleMapper {
             @Param("currentUserId") Integer currentUserId
     );
 
+    /** followerId 不为空时只统计该用户关注的作者发布的文章 */
     long countPage(
             @Param("likeKeyword") String likeKeyword,
             @Param("fulltextKeyword") String fulltextKeyword,
-            @Param("tag") String tag
+            @Param("tag") String tag,
+            @Param("followerId") Integer followerId
     );
 
     List<Article> page(
@@ -39,7 +41,18 @@ public interface ArticleMapper {
             @Param("likeKeyword") String likeKeyword,
             @Param("fulltextKeyword") String fulltextKeyword,
             @Param("tag") String tag,
+            @Param("followerId") Integer followerId,
             @Param("sort") String sort,
+            @Param("offset") int offset,
+            @Param("limit") int limit
+    );
+
+    // ---- 收藏 ----
+
+    long countBookmarked(@Param("userId") Integer userId);
+
+    List<Article> pageBookmarked(
+            @Param("currentUserId") Integer currentUserId,
             @Param("offset") int offset,
             @Param("limit") int limit
     );
@@ -84,6 +97,20 @@ public interface ArticleMapper {
     @Select("SELECT like_count FROM article WHERE id = #{id}")
     int selectLikeCount(@Param("id") Integer id);
 
+    @Update("""
+            UPDATE article
+            SET bookmark_count = (SELECT COUNT(*) FROM article_bookmark WHERE article_id = #{id})
+            WHERE id = #{id}
+            """)
+    int refreshBookmarkCount(@Param("id") Integer id);
+
+    @Select("SELECT bookmark_count FROM article WHERE id = #{id}")
+    int selectBookmarkCount(@Param("id") Integer id);
+
+    /** 浏览量由 ArticleViewService 在内存中累计后批量写入，这里按增量累加 */
+    @Update("UPDATE article SET view_count = view_count + #{delta} WHERE id = #{id}")
+    int addViewCount(@Param("id") Integer id, @Param("delta") long delta);
+
     // ---- 标签 ----
 
     int insertTags(@Param("articleId") Integer articleId, @Param("tags") List<String> tags);
@@ -111,6 +138,9 @@ public interface ArticleMapper {
 
     @Delete("DELETE FROM article_like WHERE article_id = #{articleId}")
     int deleteLikesByArticleId(@Param("articleId") Integer articleId);
+
+    @Delete("DELETE FROM article_bookmark WHERE article_id = #{articleId}")
+    int deleteBookmarksByArticleId(@Param("articleId") Integer articleId);
 
     @Delete("DELETE FROM notification WHERE article_id = #{articleId}")
     int deleteNotificationsByArticleId(@Param("articleId") Integer articleId);

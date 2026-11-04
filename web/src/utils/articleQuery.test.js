@@ -3,12 +3,21 @@ import { buildArticleQuery, normalizeArticleQuery } from './articleQuery'
 
 describe('Article query helpers', () => {
   it('normalizes invalid route values to safe defaults', () => {
-    expect(normalizeArticleQuery({ q: '  Vue  ', sort: 'oldest', page: '-2' })).toEqual({
+    expect(normalizeArticleQuery({ q: '  Vue  ', sort: 'oldest', page: '-2', scope: 'mine' })).toEqual({
       keyword: 'Vue',
       tag: '',
       sort: 'published',
+      scope: 'all',
       page: 1,
     })
+  })
+
+  it('round-trips the following scope and the views sort', () => {
+    const query = buildArticleQuery({ scope: 'following', sort: 'views' })
+
+    expect(query).toEqual({ scope: 'following', sort: 'views' })
+    expect(normalizeArticleQuery(query)).toMatchObject({ scope: 'following', sort: 'views' })
+    expect(buildArticleQuery({ scope: 'all' })).toEqual({})
   })
 
   it('omits default values from shareable URLs', () => {

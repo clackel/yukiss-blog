@@ -1,5 +1,6 @@
 package moon.yukiss.mapper;
 
+import moon.yukiss.dto.MentionedUser;
 import moon.yukiss.entity.User;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -7,6 +8,8 @@ import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+
+import java.util.List;
 
 @Mapper
 public interface UserMapper {
@@ -17,6 +20,16 @@ public interface UserMapper {
 
     @Select("SELECT * FROM user WHERE email = #{email} AND is_deleted = 0")
     User findByEmail(String email);
+
+    /** 按用户名批量查找未注销用户，用于解析评论中的 @ 提及 */
+    @Select("""
+            <script>
+            SELECT id, username, nickname FROM user
+            WHERE is_deleted = 0 AND username IN
+            <foreach collection="usernames" item="name" open="(" separator="," close=")">#{name}</foreach>
+            </script>
+            """)
+    List<MentionedUser> findMentionableByUsernames(@Param("usernames") List<String> usernames);
 
     @Insert("INSERT INTO user (username, password, nickname, email, email_verified, role, create_time, password_updated_time) " +
             "VALUES (#{username}, #{password}, #{nickname}, #{email}, #{emailVerified}, 'USER', NOW(), NOW())")

@@ -75,12 +75,21 @@ class ApiWebLayerTest {
 
     @Test
     void anonymousVisitorCanBrowseArticlesWithDefaults() throws Exception {
-        when(articleService.page(1, 10, null, "published", null)).thenReturn(PageResult.of(List.of(), 0, 1, 10));
+        when(articleService.page(1, 10, null, "published", null, "all")).thenReturn(PageResult.of(List.of(), 0, 1, 10));
 
         mockMvc.perform(get("/articles/page"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.total").value(0));
+    }
+
+    @Test
+    void followingFeedRequiresLoginEvenThoughListIsPublic() throws Exception {
+        when(articleService.page(1, 10, null, "published", null, "following"))
+                .thenThrow(BusinessException.unauthorized("请先登录"));
+
+        mockMvc.perform(get("/articles/page").param("scope", "following"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

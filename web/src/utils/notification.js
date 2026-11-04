@@ -5,6 +5,7 @@ const ACTION_TEXT = {
   article_like: '赞了你的文章',
   comment_like: '赞了你的评论',
   follow: '关注了你',
+  mention: '在评论中提到了你',
 }
 
 export function notificationText(notification) {

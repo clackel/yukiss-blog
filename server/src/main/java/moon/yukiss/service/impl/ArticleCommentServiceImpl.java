@@ -4,20 +4,27 @@ import moon.yukiss.common.BusinessException;
 import moon.yukiss.common.LikeResult;
 import moon.yukiss.common.PageResult;
 import moon.yukiss.dto.CommentRequest;
+import moon.yukiss.dto.MentionedUser;
 import moon.yukiss.entity.Article;
 import moon.yukiss.entity.ArticleComment;
 import moon.yukiss.entity.Notification;
 import moon.yukiss.mapper.ArticleCommentMapper;
 import moon.yukiss.mapper.ArticleMapper;
+import moon.yukiss.mapper.UserMapper;
 import moon.yukiss.service.ArticleCommentService;
 import moon.yukiss.service.NotificationService;
 import moon.yukiss.utils.CurrentUser;
+import moon.yukiss.utils.Mentions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -28,15 +35,18 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
 
     private final ArticleCommentMapper articleCommentMapper;
     private final ArticleMapper articleMapper;
+    private final UserMapper userMapper;
     private final NotificationService notificationService;
 
     public ArticleCommentServiceImpl(
             ArticleCommentMapper articleCommentMapper,
             ArticleMapper articleMapper,
+            UserMapper userMapper,
             NotificationService notificationService
     ) {
         this.articleCommentMapper = articleCommentMapper;
         this.articleMapper = articleMapper;
+        this.userMapper = userMapper;
         this.notificationService = notificationService;
     }
 
@@ -69,13 +79,24 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
         articleMapper.refreshCommentStats(article.getId());
 
         // 回复通知被回复的人；文章作者另收一条评论通知（作者就是被回复的人时不重复通知）
+        Set<Integer> notified = new HashSet<>();
         if (parent != null) {
             notificationService.notify(parent.getUserId(), userId, Notification.TYPE_REPLY, article.getId(), comment.getId());
+            notified.add(parent.getUserId());
         }
         if (parent == null || !article.getAuthorId().equals(parent.getUserId())) {
             notificationService.notify(article.getAuthorId(), userId, Notification.TYPE_COMMENT, article.getId(), comment.getId());
+            notified.add(article.getAuthorId());
         }
-        return articleCommentMapper.findById(comment.getId(), userId);
+        // @ 提及：已经因为评论 / 回复收到通知的人不再重复提醒
+        ArticleComment saved = articleCommentMapper.findById(comment.getId(), userId);
+        attachMentions(List.of(saved));
+        for (MentionedUser mentioned : saved.getMentions()) {
+            if (notified.add(mentioned.getId())) {
+                notificationService.notify(mentioned.getId(), userId, Notification.TYPE_MENTION, article.getId(), comment.getId());
+            }
+        }
+        return saved;
     }
 
     @Override
@@ -114,6 +135,9 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
                     parent.getReplies().add(reply);
                 }
             }
+            List<ArticleComment> all = new ArrayList<>(topLevel);
+            all.addAll(replies);
+            attachMentions(all);
         }
         return PageResult.of(topLevel, total, normalizedPage, normalizedPageSize);
     }
@@ -126,7 +150,9 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
             throw BusinessException.forbidden("只能编辑自己的评论");
         }
         articleCommentMapper.updateContent(commentId, content.trim());
-        return articleCommentMapper.findById(commentId, userId);
+        ArticleComment updated = articleCommentMapper.findById(commentId, userId);
+        attachMentions(List.of(updated));
+        return updated;
     }
 
     @Override
@@ -172,6 +198,30 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
         }
         int likeCount = articleCommentMapper.countCommentLikes(commentId);
         return new LikeResult(liked ? "点赞成功" : "取消点赞", liked, likeCount);
+    }
+
+    /** 解析这批评论正文里的 @username，一次查库后填充每条评论的 mentions（只保留仍存在的用户） */
+    private void attachMentions(List<ArticleComment> comments) {
+        Set<String> usernames = new LinkedHashSet<>();
+        for (ArticleComment comment : comments) {
+            usernames.addAll(Mentions.extractUsernames(comment.getContent()));
+        }
+        if (usernames.isEmpty()) {
+            return;
+        }
+        Map<String, MentionedUser> byUsername = userMapper.findMentionableByUsernames(new ArrayList<>(usernames))
+                .stream()
+                .collect(Collectors.toMap(user -> user.getUsername().toLowerCase(Locale.ROOT), Function.identity(), (a, b) -> a));
+        for (ArticleComment comment : comments) {
+            List<MentionedUser> mentions = new ArrayList<>();
+            for (String username : Mentions.extractUsernames(comment.getContent())) {
+                MentionedUser user = byUsername.get(username.toLowerCase(Locale.ROOT));
+                if (user != null && !mentions.contains(user)) {
+                    mentions.add(user);
+                }
+            }
+            comment.setMentions(mentions);
+        }
     }
 
     private ArticleComment requireComment(Integer commentId, Integer userId) {

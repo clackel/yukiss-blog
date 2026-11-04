@@ -42,6 +42,19 @@ public class BlogSchemaInitializer implements ApplicationRunner {
         }
         addColumnIfMissing("article_comment", "update_time", "DATETIME NULL");
         addFulltextIndexIfMissing();
+
+        // 社区互动：收藏、浏览量
+        if (addColumnIfMissing("article", "bookmark_count", "INT NOT NULL DEFAULT 0")) {
+            backfillArticleBookmarkCounts();
+        }
+        addColumnIfMissing("article", "view_count", "INT NOT NULL DEFAULT 0");
+    }
+
+    private void backfillArticleBookmarkCounts() {
+        jdbcTemplate.execute("""
+                UPDATE article a
+                SET bookmark_count = (SELECT COUNT(*) FROM article_bookmark ab WHERE ab.article_id = a.id)
+                """);
     }
 
     /** 计数字段首次添加时，根据现有点赞和评论回填。之后由业务代码在同一事务内维护。 */
@@ -174,6 +187,17 @@ public class BlogSchemaInitializer implements ApplicationRunner {
                     KEY idx_notification_user_read (user_id, is_read),
                     KEY idx_notification_article (article_id),
                     KEY idx_notification_comment (comment_id)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS article_bookmark (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    user_id INT NOT NULL,
+                    article_id INT NOT NULL,
+                    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_article_bookmark_user_article (user_id, article_id),
+                    KEY idx_article_bookmark_article (article_id),
+                    KEY idx_article_bookmark_user_time (user_id, create_time)
                 )
                 """);
         jdbcTemplate.execute("""

@@ -76,6 +76,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="public-profile">我的主页</el-dropdown-item>
+                <el-dropdown-item command="bookmarks">我的收藏</el-dropdown-item>
                 <el-dropdown-item command="notifications">
                   通知<template v-if="unreadCount">（{{ unreadCount }}）</template>
                 </el-dropdown-item>
@@ -144,7 +145,7 @@ const handleAccountCommand = (command) => {
     if (userInfo.value?.id) router.push(`/users/${userInfo.value.id}`)
     return
   }
-  if (command === 'profile' || command === 'notifications') {
+  if (command === 'profile' || command === 'notifications' || command === 'bookmarks') {
     router.push(`/${command}`)
     return
   }
